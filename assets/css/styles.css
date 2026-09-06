@@ -2211,3 +2211,11 @@ button.visit-progress-item{cursor:pointer}
 .import-rejected strong{display:block;margin-bottom:3px}
 
 @keyframes aisapoImportSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* Ver.2.8.63 対象外表示：氏名を出さず党員IDで照合 */
+.import-rejected>div{display:grid;grid-template-columns:minmax(130px,220px) 1fr;gap:14px;align-items:start}
+.import-rejected-id{font-weight:800;word-break:break-all}
+.import-rejected-reason{color:#6f6256}
+@media(max-width:640px){
+  .import-rejected>div{grid-template-columns:1fr;gap:1px;margin-bottom:8px}
+}
