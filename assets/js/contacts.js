@@ -82,8 +82,7 @@ async function importContactsFile(){
       added+=Number(d.added||0);skipped+=Number(d.skipped||0);duplicateSkipped+=Number(d.duplicateSkipped||0);geocoded+=Number(d.geocoded||0);
       const failures=d.failed||[];pendingImportLocations.push(...failures.filter(x=>x.category==='location').map(x=>({...x,areaId:x.areaId||currentAreaId})));rejectedImports.push(...failures.filter(x=>x.category!=='location'));
     }
-    const rejectedHtml=rejectedImports.length?`<div class="import-rejected"><div class="import-rejected-head"><strong>取込対象外</strong><button type="button" class="btn ghost compact" onclick="toggleRejectedImportDetails(this)">表示</button></div><div class="import-rejected-body hidden">${rejectedImports.map(x=>`<div><span class="import-rejected-id">${esc(x.partyId||'（党員IDなし）')}</span><span class="import-rejected-reason">${esc(x.reason||'取込不可')}</span></div>`).join('')}</div></div>`:'';
-    $('importResult').innerHTML=`<div class="import-summary"><div class="import-summary-title">✓ 取込完了</div><div class="import-summary-main">${added}件を追加しました</div><div class="import-summary-counts"><span>入力 ${normalized.length}件</span><span>重複 ${duplicateSkipped}件</span><span>位置未確認 ${pendingImportLocations.length}件</span><span>対象外 ${rejectedImports.length}件</span></div>${rejectedHtml}</div>`;
+    $('importResult').innerHTML=`<div class="import-summary"><div class="import-summary-title">✓ 取込完了</div><div class="import-summary-main">${added}件を追加しました</div><div class="import-summary-counts"><span>入力 ${normalized.length}件</span><span>重複 ${duplicateSkipped}件</span><span>位置未確認 ${pendingImportLocations.length}件</span><span>対象外 ${rejectedImports.length}件</span></div></div>`;
     renderPendingImports();await loadRecords();await loadImportIssues();
     if(pendingImportLocations.length)alert(`⚠ ${pendingImportLocations.length}件は位置情報へ変換できなかったため登録していません。\n「位置未確認データ」から確認してください。`);
   }catch(e){
@@ -132,15 +131,6 @@ function formatImportIssueDate(v){
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
-function toggleRejectedImportDetails(btn){
-  const wrap=btn&&btn.closest('.import-rejected');
-  const body=wrap&&wrap.querySelector('.import-rejected-body');
-  if(!body)return;
-  const open=body.classList.contains('hidden');
-  body.classList.toggle('hidden',!open);
-  btn.textContent=open?'閉じる':'表示';
-  btn.setAttribute('aria-expanded',open?'true':'false');
-}
 
 function renderPendingImports(){
   const panel=$('pendingImportPanel'),list=$('pendingImportList'),sum=$('pendingImportSummary');if(!panel||!list||!sum)return;
