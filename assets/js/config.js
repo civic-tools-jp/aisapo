@@ -13,6 +13,7 @@ const STATUS_ALIASES={
 };
 function statusKey(value){
   const v=String(value||"").trim();
-  return STATUS[v] ? v : (STATUS_ALIASES[v] || "unvisited");
+  const k=STATUS[v] ? v : (STATUS_ALIASES[v] || "unvisited");
+  return k==="good" ? "visited" : k;
 }
 

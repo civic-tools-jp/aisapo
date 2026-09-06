@@ -1,9 +1,18 @@
 function boolValue(v){return v===true||v===1||String(v||"").toLowerCase()==="true"}
 "use strict";
-async function loadRecords(){try{setBusy(true);const d=await api('listRecords',{areaId:currentAreaId});records=d.records||[];renderAll();}catch(e){if(/セッション/.test(e.message)){logout();return}msg('appMsg',e.message)}finally{setBusy(false)}}
+async function loadRecords(){try{setBusy(true);const d=await api('listRecords',{areaId:currentAreaId});records=d.records||[];await loadActivitySummary();renderAll();}catch(e){if(/セッション/.test(e.message)){logout();return}msg('appMsg',e.message)}finally{setBusy(false)}}
 function setBusy(v){$('app').classList.toggle('spinner',v)}
+async function loadActivitySummary(){try{const d=await api('activitySummary',{areaId:currentAreaId});activitySummary=d||null;}catch(e){console.warn('activity summary',e);activitySummary=null;}}
 function isRevisit(r){return statusKey(r.status)==='revisit'}
-function renderStatus(){const grid=$('statusGrid');if(grid)grid.innerHTML='';const st=STATUS[editStatus]||STATUS.unvisited;if($('detailHeaderStatus'))$('detailHeaderStatus').innerHTML=`<span class="status-icon">${st.icon||''}</span>${st.label}`;const summary=$('visitSummary');if(summary){const count=Number(editing?.visitCount||editing?.roundNo||0)||0;const next=editing?.nextVisitDate?formatVisitDate(editing.nextVisitDate):'';summary.innerHTML=`<div class="visit-summary-main"><strong>${st.icon||''} ${esc(st.label)}</strong>${count?`<span>${count}回訪問</span>`:'<span>訪問履歴なし</span>'}</div>${next?`<div class="visit-summary-next">次回予定：${esc(next)}</div>`:''}`;}}
+function renderDetailQuickSummary(r){
+  const box=$('detailQuickSummary');if(!box)return;
+  const st=STATUS[statusKey(r?.status)]||STATUS.unvisited;
+  const next=r?.nextVisitDate?formatVisitDate(r.nextVisitDate):'未設定';
+  const rank=typeof supportRankLabel==='function'?supportRankLabel(r?.supporter):'';
+  const last=r?.date?formatVisitDate(r.date):'未訪問';
+  box.innerHTML=`<div><span>現在</span><b>${esc(st.label)}</b></div><div><span>最終訪問</span><b>${esc(last)}</b></div><div><span>次回予定</span><b>${esc(next)}</b></div><div><span>支持</span><b>${esc(rank||'未判定')}</b></div>${boolValue(r?.urgent)?'<div class="quick-alert"><span>対応</span><b>⚡ 急ぎ</b></div>':''}${boolValue(r?.warning)?'<div class="quick-alert"><span>注意</span><b>⚠ あり</b></div>':''}`;
+}
+function renderStatus(){const grid=$('statusGrid');if(grid)grid.innerHTML='';const st=STATUS[editStatus]||STATUS.unvisited;if($('detailHeaderStatus'))$('detailHeaderStatus').innerHTML=`<span class="status-icon">${st.icon||''}</span>${st.label}`;const summary=$('visitSummary');if(summary){const count=Number(editing?.visitCount||editing?.roundNo||0)||0;const next=editing?.nextVisitDate?formatVisitDate(editing.nextVisitDate):'';summary.innerHTML=`<div class="visit-summary-main"><strong>${st.icon||''} ${esc(st.label)}</strong>${count?`<span>${count}回訪問</span>`:'<span>訪問履歴なし</span>'}</div>${next?`<div class="visit-summary-next">次回予定：${esc(next)}</div>`:''}`;}renderDetailQuickSummary(editing||{});}
 function inputDateValue(v){
   if(!v)return today();
   if(v instanceof Date&&!isNaN(v))return v.toISOString().slice(0,10);
@@ -45,7 +54,7 @@ function isPartyOrSupporter(c){
   const raw=String(c.memberTypeRaw||c.membershipType||c.memberCategory||c.partyMemberType||'').trim();
   return /党員|会員|サポーター/.test(raw);
 }
-function openEdit(r,isNew){editing={...r,isNew};$('recordId').value=r.id||'';$('recordMemberType').value=r.memberType||'general';$('recordSource').value=r.source||(isNew?'manual':'');$('lat').value=r.lat||'';$('lng').value=r.lng||'';$('fullAddress').value=r.fullAddress||'';$('personName').value=(typeof recordDisplayName==='function'?recordDisplayName(r):(r.personName||''));$('recordPhone').value=r.phone||'';$('recordEmail').value=r.email||'';$('supporter').value=(typeof supportRankValue==='function'?supportRankValue(r.supporter):(r.supporter||''));$('priority').value=r.revisitPriority||'';$('referrer').value=r.referrer||'';$('followParty').checked=boolValue(r.followParty);$('followSupporter').checked=boolValue(r.followSupporter);$('followDetails').checked=boolValue(r.followDetails);$('followDone').checked=boolValue(r.followDone);$('followMemo').value=r.followMemo||'';toggleFollowFields();$('warning').checked=boolValue(r.warning);$('warningReason').value=r.warningReason||'';$('warningMemo').value=r.warningMemo||'';toggleWarningFields();$('posterRequest').checked=boolValue(r.posterRequest);$('posterReported').checked=boolValue(r.posterReported);$('posterRequestMemo').value=r.posterRequestMemo||'';togglePosterRequestFields();$('type').value=r.type||'戸建て';$('date').value=today();$('memo').value='';if($('visitRound'))$('visitRound').value=String(nextRoundForRecord(r));if($('visitResult'))$('visitResult').value='';if($('visitPosted'))$('visitPosted').checked=false;if($('nextVisitDate'))$('nextVisitDate').value=r.nextVisitDate?inputDateValue(r.nextVisitDate):'';toggleVisitResultFields();editStatus=statusKey(r.status);renderStatus();updateDetailHeader({...r,isNew});const imported=String(r.source||'')==='import';
+function openEdit(r,isNew){editing={...r,isNew};$('recordId').value=r.id||'';$('recordMemberType').value=r.memberType||'general';$('recordSource').value=r.source||(isNew?'manual':'');$('lat').value=r.lat||'';$('lng').value=r.lng||'';$('fullAddress').value=r.fullAddress||'';$('personName').value=(typeof recordDisplayName==='function'?recordDisplayName(r):(r.personName||''));$('recordPhone').value=r.phone||'';$('recordEmail').value=r.email||'';$('supporter').value=(typeof supportRankValue==='function'?supportRankValue(r.supporter):(r.supporter||''));if($('urgent'))$('urgent').checked=boolValue(r.urgent);$('referrer').value=r.referrer||'';$('followParty').checked=boolValue(r.followParty);$('followSupporter').checked=boolValue(r.followSupporter);$('followDetails').checked=boolValue(r.followDetails);$('followDone').checked=boolValue(r.followDone);$('followMemo').value=r.followMemo||'';toggleFollowFields();$('warning').checked=boolValue(r.warning);$('warningReason').value=r.warningReason||'';$('warningMemo').value=r.warningMemo||'';toggleWarningFields();$('posterRequest').checked=boolValue(r.posterRequest);$('posterReported').checked=boolValue(r.posterReported);$('posterRequestMemo').value=r.posterRequestMemo||'';togglePosterRequestFields();$('type').value=r.type||'戸建て';$('date').value=today();$('memo').value='';if($('visitRound'))$('visitRound').value=String(nextRoundForRecord(r));if($('visitResult'))$('visitResult').value='';if($('visitPosted'))$('visitPosted').checked=false;if($('nextVisitDate'))$('nextVisitDate').value=r.nextVisitDate?inputDateValue(r.nextVisitDate):'';toggleVisitResultFields();editStatus=statusKey(r.status);renderStatus();updateDetailHeader({...r,isNew});const imported=String(r.source||'')==='import';
   const importedPrivacy=imported;
   $('recordAddressBlock')?.classList.toggle('hidden',importedPrivacy);
   $('recordImportedLocationBlock')?.classList.toggle('hidden',!importedPrivacy);
@@ -152,6 +161,7 @@ function updateDetailHeader(r){
     const st=STATUS[statusKey(r.status)]||STATUS.unvisited;
     $('detailHeaderStatus').innerHTML=`<span class="status-icon">${st.icon||''}</span>${st.label}`;
   }
+  renderDetailQuickSummary(r);
 }
 
 
@@ -197,13 +207,11 @@ async function saveRecord(){
     }
 
     const statusNow=editStatus;
-    const priorityNow=$('priority').value;
     const hasFollowNow=$('followParty').checked||$('followSupporter').checked||$('followDetails').checked;
     const posterNow=$('posterRequest').checked;
     const dateNow=$('date').value;
     const visitResult=$('visitResult')?.value||'';
     const cautions=[];
-    if(statusNow==='refused' && priorityNow) cautions.push('「断られた」状態ですが、再訪優先度が設定されています。');
     if(statusNow==='refused' && hasFollowNow) cautions.push('「断られた」状態ですが、フォロー対象が設定されています。');
     if(statusNow==='refused' && posterNow) cautions.push('「断られた」状態ですが、ポスター依頼が設定されています。');
     if(cautions.length && !confirm(cautions.join('\n')+'\n\nこの内容で保存しますか？')) return;
@@ -222,7 +230,8 @@ async function saveRecord(){
       email:importedPrivacy?'':$('recordEmail').value.trim(),
       status:editStatus,
       supporter:$('supporter').value,
-      revisitPriority:$('priority').value,
+      revisitPriority:editing?.revisitPriority||'',
+      urgent:!!$('urgent')?.checked,
       referrer:$('referrer').value.trim(),
       followParty:$('followParty').checked,
       followSupporter:$('followSupporter').checked,
@@ -238,6 +247,7 @@ async function saveRecord(){
       type:$('type').value,
       date:visitResult?($('date').value||today()):(editing?.date||''),
       memo:visitResult?$('memo').value.trim():(editing?.memo||''),
+      nextVisitDate:$('nextVisitDate')?.value||'',
       updatedAt:editing?.updatedAt||''
     };
     if(visitResult){

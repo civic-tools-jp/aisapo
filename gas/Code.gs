@@ -1,4 +1,4 @@
-// あいサポ Ver.2.8.56 API — production source
+// あいサポ Ver.2.8.57 API — production source
 // Source cleanup only: no data migration code or one-off maintenance functions.
 
 const SHEETS={USERS:'Users',BRANCHES:'Branches',AREAS:'Areas',CONTACTS:'Contacts',RECORDS:'Records',VISIT_HISTORY:'VisitHistory',SESSIONS:'Sessions',BRANCH_MESSAGES:'BranchMessages',LOGIN_HISTORY:'LoginHistory'};
@@ -12,10 +12,10 @@ const SESSION_HEADERS=['token','userId','expiresAt','createdAt'];
 const BRANCH_MESSAGE_HEADERS=['messageId','fromBranchId','toBranchId','title','body','createdBy','createdByName','createdAt','active'];
 const LOGIN_HISTORY_HEADERS=['logId','userId','loginId','name','success','loggedAt'];
 
-function doGet(){return json_({ok:true,name:'あいサポ Ver.2.8.56 API'});}
+function doGet(){return json_({ok:true,name:'あいサポ Ver.2.8.57 API'});}
 function doPost(e){try{const p=JSON.parse((e.postData&&e.postData.contents)||'{}');if(p.action==='setup')return json_(setup_(p));if(p.action==='login')return json_(login_(p));const user=auth_(p.token);switch(p.action){
 case'bootstrap':return json_(bootstrap_(user));
-case'listRecords':return json_(listRecords_(user,p));case'listVisitHistory':return json_(listVisitHistory_(user,p));case'saveRecord':return json_(saveRecord_(user,p.record||{},p.visitEntry||null));case'deleteRecord':return json_(deleteRecord_(user,p));
+case'listRecords':return json_(listRecords_(user,p));case'listVisitHistory':return json_(listVisitHistory_(user,p));case'activitySummary':return json_(activitySummary_(user,p));case'saveRecord':return json_(saveRecord_(user,p.record||{},p.visitEntry||null));case'deleteRecord':return json_(deleteRecord_(user,p));
 case'listContacts':return json_(listContacts_(user,p));case'saveContact':return json_(saveContact_(user,p.contact||{}));case'deleteContact':return json_(deleteContact_(user,p));
 case'listBranchMessages':return json_(listBranchMessages_(user,p));case'saveBranchMessage':return json_(saveBranchMessage_(user,p.message||{}));case'deleteBranchMessage':return json_(deleteBranchMessage_(user,p));
 case'saveImportedLocation':return json_(saveImportedLocation_(user,p));
@@ -151,6 +151,40 @@ function listVisitHistory_(u,p){
   const visits=rows_(SHEETS.VISIT_HISTORY).filter(v=>String(v.recordId)===recordId).sort((a,b)=>String(b.visitedAt||b.createdAt||'').localeCompare(String(a.visitedAt||a.createdAt||'')));
   return{ok:true,visits};
 }
+
+function activitySummary_(u,p){
+  const area=allowedArea_(u,p.areaId||u.areaId||'');
+  if(!area)return{ok:true,periods:{today:emptyActivityPeriod_(),week:emptyActivityPeriod_(),month:emptyActivityPeriod_()}};
+  ensureVisitHistorySheet_();
+  const visits=rows_(SHEETS.VISIT_HISTORY).filter(v=>String(v.areaId)===String(area.areaId));
+  const now=new Date(),today=localYmd_(now);
+  const weekStart=new Date(now.getFullYear(),now.getMonth(),now.getDate()-6);
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const periods={
+    today:summarizeActivityPeriod_(visits,today,today),
+    week:summarizeActivityPeriod_(visits,localYmd_(weekStart),today),
+    month:summarizeActivityPeriod_(visits,localYmd_(monthStart),today)
+  };
+  return{ok:true,periods};
+}
+function emptyActivityPeriod_(){return{visits:0,contacts:0,absent:0,intercom:0,refused:0,posted:0,contactRate:0};}
+function summarizeActivityPeriod_(visits,from,to){
+  const x=emptyActivityPeriod_();
+  visits.forEach(v=>{
+    const d=String(v.visitedAt||'').slice(0,10);if(!d||d<from||d>to)return;
+    x.visits++;
+    const r=String(v.result||'');
+    if(r==='talked'||r==='family')x.contacts++;
+    if(r==='absent')x.absent++;
+    if(r==='intercom')x.intercom++;
+    if(r==='refused')x.refused++;
+    if(truth_(v.posted))x.posted++;
+  });
+  x.contactRate=x.visits?Math.round(x.contacts/x.visits*100):0;
+  return x;
+}
+function localYmd_(d){return Utilities.formatDate(d,Session.getScriptTimeZone()||'Asia/Tokyo','yyyy-MM-dd');}
+
 function appendVisitHistory_(u,record,entry){
   const sh=ensureVisitHistorySheet_(),now=now_();
   const row={visitId:uuid_(),recordId:record.id,branchId:record.branchId,areaId:record.areaId,roundNo:Number(entry.roundNo||0)||'',visitedAt:String(entry.visitedAt||'').slice(0,10),result:String(entry.result||''),posted:bool_(entry.posted),nextVisitDate:String(entry.nextVisitDate||'').slice(0,10),memo:String(entry.memo||''),createdById:u.userId,createdByName:u.name,createdAt:now};
@@ -221,6 +255,7 @@ function saveRecord_(u,r,visitEntry){
     household:r.household||old?.household||'',
     contact:r.contact||old?.contact||'',
     revisitPriority:r.revisitPriority||'',
+    urgent:bool_(r.urgent),
     referrer:r.referrer||'',
     supporter:r.supporter||'',
     followParty:bool_(r.followParty),
@@ -237,7 +272,7 @@ function saveRecord_(u,r,visitEntry){
     visitCount:(Number(old?.visitCount||0)||0)+(visitEntry&&visitEntry.result?1:0),
     roundNo:visitEntry&&visitEntry.result?Number(visitEntry.roundNo||0):(Number(old?.roundNo||0)||0),
     lastVisitResult:visitEntry&&visitEntry.result?String(visitEntry.result||''):String(old?.lastVisitResult||''),
-    nextVisitDate:visitEntry&&visitEntry.result?String(visitEntry.nextVisitDate||''):String(old?.nextVisitDate||''),
+    nextVisitDate:visitEntry&&visitEntry.result?String(visitEntry.nextVisitDate||''):String(r.nextVisitDate!==undefined?r.nextVisitDate:(old?.nextVisitDate||'')),
     signboard:bool_(r.signboard),
     posterParty:r.posterParty||old?.posterParty||'',
     posterMemo:r.posterMemo||old?.posterMemo||'',
