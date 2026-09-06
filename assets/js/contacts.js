@@ -82,7 +82,7 @@ async function importContactsFile(){
       added+=Number(d.added||0);skipped+=Number(d.skipped||0);duplicateSkipped+=Number(d.duplicateSkipped||0);geocoded+=Number(d.geocoded||0);
       const failures=d.failed||[];pendingImportLocations.push(...failures.filter(x=>x.category==='location').map(x=>({...x,areaId:x.areaId||currentAreaId})));rejectedImports.push(...failures.filter(x=>x.category!=='location'));
     }
-    const rejectedHtml=rejectedImports.length?`<div class="import-rejected"><strong>取込対象外</strong>${rejectedImports.map(x=>`<div><span class="import-rejected-id">${esc(x.partyId||'（党員IDなし）')}</span><span class="import-rejected-reason">${esc(x.reason||'取込不可')}</span></div>`).join('')}</div>`:'';
+    const rejectedHtml=rejectedImports.length?`<div class="import-rejected"><div class="import-rejected-head"><strong>取込対象外</strong><button type="button" class="btn ghost compact" onclick="toggleRejectedImportDetails(this)">表示</button></div><div class="import-rejected-body hidden">${rejectedImports.map(x=>`<div><span class="import-rejected-id">${esc(x.partyId||'（党員IDなし）')}</span><span class="import-rejected-reason">${esc(x.reason||'取込不可')}</span></div>`).join('')}</div></div>`:'';
     $('importResult').innerHTML=`<div class="import-summary"><div class="import-summary-title">✓ 取込完了</div><div class="import-summary-main">${added}件を追加しました</div><div class="import-summary-counts"><span>入力 ${normalized.length}件</span><span>重複 ${duplicateSkipped}件</span><span>位置未確認 ${pendingImportLocations.length}件</span><span>対象外 ${rejectedImports.length}件</span></div>${rejectedHtml}</div>`;
     renderPendingImports();await loadRecords();await loadImportIssues();
     if(pendingImportLocations.length)alert(`⚠ ${pendingImportLocations.length}件は位置情報へ変換できなかったため登録していません。\n「位置未確認データ」から確認してください。`);
@@ -94,8 +94,8 @@ async function importContactsFile(){
 }
 
 async function loadImportIssues(){
-  const panel=$('importIssuesPanel'),list=$('importIssuesList'),count=$('importIssuesCount');
-  if(!panel||!list||!count)return;
+  const panel=$('importIssuesPanel'),list=$('importIssuesList'),count=$('importIssuesCount'),body=$('importIssuesBody'),toggle=$('importIssuesToggle');
+  if(!panel||!list||!count||!body||!toggle)return;
   if(!window.appSession||!['leader','prefecture_admin','system_admin'].includes(window.appSession.role)){panel.classList.add('hidden');return;}
   try{
     const d=await api('listImportIssues',{areaId:currentAreaId});
@@ -103,17 +103,43 @@ async function loadImportIssues(){
     panel.classList.toggle('hidden',issues.length===0);
     count.textContent=issues.length?`${issues.length}件`:'';
     list.innerHTML=issues.map(x=>`<div class="import-issue-row"><span class="import-issue-id">${esc(x.partyId||'')}</span><span class="import-issue-reason">${esc(x.reason||'確認が必要です')}</span><span class="import-issue-date">${esc(formatImportIssueDate(x.importedAt))}</span></div>`).join('');
+    const open=localStorage.getItem('aisapo.importIssuesOpen')==='1';
+    body.classList.toggle('hidden',!open);
+    toggle.textContent=open?'閉じる':'表示';
+    toggle.setAttribute('aria-expanded',open?'true':'false');
   }catch(e){
     panel.classList.remove('hidden');
     count.textContent='';
+    body.classList.remove('hidden');
+    toggle.textContent='閉じる';
+    toggle.setAttribute('aria-expanded','true');
     list.innerHTML=`<div class="card-sub">取込確認履歴を読み込めませんでした：${esc(e.message)}</div>`;
   }
+}
+function toggleImportIssues(){
+  const body=$('importIssuesBody'),toggle=$('importIssuesToggle');
+  if(!body||!toggle)return;
+  const willOpen=body.classList.contains('hidden');
+  body.classList.toggle('hidden',!willOpen);
+  toggle.textContent=willOpen?'閉じる':'表示';
+  toggle.setAttribute('aria-expanded',willOpen?'true':'false');
+  localStorage.setItem('aisapo.importIssuesOpen',willOpen?'1':'0');
 }
 function formatImportIssueDate(v){
   if(!v)return'';
   const d=new Date(v);
   if(isNaN(d))return String(v);
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function toggleRejectedImportDetails(btn){
+  const wrap=btn&&btn.closest('.import-rejected');
+  const body=wrap&&wrap.querySelector('.import-rejected-body');
+  if(!body)return;
+  const open=body.classList.contains('hidden');
+  body.classList.toggle('hidden',!open);
+  btn.textContent=open?'閉じる':'表示';
+  btn.setAttribute('aria-expanded',open?'true':'false');
 }
 
 function renderPendingImports(){
