@@ -181,7 +181,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 
 .contact-extra{margin:12px 0;border:1px solid #eee2d5;border-radius:14px;padding:10px 12px}.contact-extra summary{font-weight:800;cursor:pointer}
 .import-result{margin-top:10px;font-size:13px}
-.spinner{cursor:wait}.spinner::after{content:"";position:fixed;right:18px;bottom:18px;width:28px;height:28px;border:3px solid #e8dfd4;border-top-color:var(--orange);border-radius:50%;animation:spin .8s linear infinite;z-index:2000}
+.spinner{cursor:wait}.spinner::after{content:"";position:fixed;right:18px;bottom:18px;width:28px;height:28px;border:3px solid #e8dfd4;border-top-color:var(--orange);border-radius:50%;animation:aisapoImportSpin .8s linear infinite;z-index:2000}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 .pin-wrap{position:relative;width:28px;height:36px}
@@ -2197,7 +2197,7 @@ button.visit-progress-item{cursor:pointer}
 
 /* Ver.2.8.63 名簿取り込み操作フィードバック */
 #contactImportBtn:disabled{cursor:wait;opacity:.78;transform:none;box-shadow:none}
-#contactImportBtn.importing::before{content:"";display:inline-block;width:15px;height:15px;margin-right:9px;vertical-align:-2px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+#contactImportBtn.importing::before{content:"";display:inline-block;width:15px;height:15px;margin-right:9px;vertical-align:-2px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:aisapoImportSpin .8s linear infinite}
 .import-result{white-space:normal}
 .import-status{margin-top:12px;padding:12px 14px;border-radius:12px;background:#f7f5f1}
 .import-status.processing{color:#6f6256}
@@ -2209,3 +2209,5 @@ button.visit-progress-item{cursor:pointer}
 .import-summary-counts span{padding:6px 10px;border-radius:999px;background:#f6f3ee;font-size:12px;font-weight:700}
 .import-rejected{margin-top:13px;padding-top:12px;border-top:1px solid #eee5da;font-size:12px;line-height:1.8}
 .import-rejected strong{display:block;margin-bottom:3px}
+
+@keyframes aisapoImportSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
