@@ -2176,8 +2176,21 @@ button.visit-progress-item{cursor:pointer}
 .region-progress-section.is-compact-empty { padding-bottom: 16px; }
 .region-progress-section.is-compact-empty .section-heading { margin-bottom: 0; }
 
-/* v2.8.61: 管理画面の仮パスワード欄を他の入力欄と同じ幅に揃える */
+/* v2.8.62: 管理画面の仮パスワード欄を他の入力欄と同じ幅に揃える */
 @media (min-width:701px){
   #view-admin .admin-user-create-panel > .password-field-character{max-width:980px;}
 }
 .admin-no-actions{color:#aaa;font-weight:700}
+
+
+/* Ver.2.8.62 password visibility UI
+   Desktop: use browser-native password reveal control only.
+   Mobile: keep Aisapo's own reveal button for consistent usability. */
+@media (min-width:701px){
+  .password-character-toggle{display:none!important;}
+  .password-field-character input{padding-right:16px!important;}
+}
+@media (max-width:700px){
+  .password-character-toggle{display:flex!important;}
+  .password-field-character input{padding-right:64px!important;}
+}
