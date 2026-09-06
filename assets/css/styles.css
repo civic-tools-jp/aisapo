@@ -2194,3 +2194,18 @@ button.visit-progress-item{cursor:pointer}
   .password-character-toggle{display:flex!important;}
   .password-field-character input{padding-right:64px!important;}
 }
+
+/* Ver.2.8.63 名簿取り込み操作フィードバック */
+#contactImportBtn:disabled{cursor:wait;opacity:.78;transform:none;box-shadow:none}
+#contactImportBtn.importing::before{content:"";display:inline-block;width:15px;height:15px;margin-right:9px;vertical-align:-2px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+.import-result{white-space:normal}
+.import-status{margin-top:12px;padding:12px 14px;border-radius:12px;background:#f7f5f1}
+.import-status.processing{color:#6f6256}
+.import-status.error{color:#b42318;background:#fff5f4}
+.import-summary{margin-top:14px;padding:16px;border:1px solid #e5ddd2;border-radius:14px;background:#fff}
+.import-summary-title{font-weight:900;color:var(--green-deep);font-size:15px}
+.import-summary-main{font-weight:900;font-size:20px;margin-top:5px}
+.import-summary-counts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.import-summary-counts span{padding:6px 10px;border-radius:999px;background:#f6f3ee;font-size:12px;font-weight:700}
+.import-rejected{margin-top:13px;padding-top:12px;border-top:1px solid #eee5da;font-size:12px;line-height:1.8}
+.import-rejected strong{display:block;margin-bottom:3px}

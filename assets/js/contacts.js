@@ -69,8 +69,11 @@ function normalizeImportRow(row,forced){
 }
 async function importContactsFile(){
   const file=$('contactImportFile').files[0];if(!file){alert('ExcelまたはCSVを選んでください');return}if(!currentAreaId){alert('取込先の活動エリアを選んでください');return}
+  const btn=$('contactImportBtn');
   try{
-    $('importResult').textContent='読み込み中...';pendingImportLocations=[];renderPendingImports();
+    if(btn){btn.disabled=true;btn.classList.add('importing');btn.textContent='取り込み中…';}
+    $('importResult').innerHTML='<div class="import-status processing">名簿を読み込み、住所を位置情報へ変換しています。しばらくお待ちください。</div>';
+    pendingImportLocations=[];renderPendingImports();
     const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const raw=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
     const normalized=raw.map(r=>normalizeImportRow(r,'auto')).filter(r=>r.partyId||r.lastName||r.fullAddress);if(!normalized.length)throw Error('党員ID・苗字・住所のある行が見つかりません');
     let added=0,skipped=0,duplicateSkipped=0,geocoded=0;const rejectedImports=[];
@@ -79,10 +82,15 @@ async function importContactsFile(){
       added+=Number(d.added||0);skipped+=Number(d.skipped||0);duplicateSkipped+=Number(d.duplicateSkipped||0);geocoded+=Number(d.geocoded||0);
       const failures=d.failed||[];pendingImportLocations.push(...failures.filter(x=>x.category==='location').map(x=>({...x,areaId:x.areaId||currentAreaId})));rejectedImports.push(...failures.filter(x=>x.category!=='location'));
     }
-    $('importResult').textContent=`取込完了：入力 ${normalized.length}件／${added}件追加／党員ID重複 ${duplicateSkipped}件／位置変換成功 ${geocoded}件／位置未確認 ${pendingImportLocations.length}件／取込対象外 ${rejectedImports.length}件`;if(rejectedImports.length){$('importResult').textContent+='\n取込対象外：'+rejectedImports.map(x=>`${x.lastName||x.partyId||'不明'}（${x.reason||'取込不可'}）`).join('、');}
+    const rejectedHtml=rejectedImports.length?`<div class="import-rejected"><strong>取込対象外</strong>${rejectedImports.map(x=>`<div>${esc(x.lastName||x.partyId||'不明')}：${esc(x.reason||'取込不可')}</div>`).join('')}</div>`:'';
+    $('importResult').innerHTML=`<div class="import-summary"><div class="import-summary-title">✓ 取込完了</div><div class="import-summary-main">${added}件を追加しました</div><div class="import-summary-counts"><span>入力 ${normalized.length}件</span><span>重複 ${duplicateSkipped}件</span><span>位置未確認 ${pendingImportLocations.length}件</span><span>対象外 ${rejectedImports.length}件</span></div>${rejectedHtml}</div>`;
     renderPendingImports();await loadRecords();
-    if(pendingImportLocations.length)alert(`⚠ ${pendingImportLocations.length}件は位置情報へ変換できなかったため登録していません。\n「位置未確認データ」から確認してください。`);if(rejectedImports.length)alert(`⚠ ${rejectedImports.length}件は必須項目不足または担当活動エリア外のため取り込み対象外です。\n画面の取込結果を確認してください。`);
-  }catch(e){$('importResult').textContent='エラー：'+e.message}
+    if(pendingImportLocations.length)alert(`⚠ ${pendingImportLocations.length}件は位置情報へ変換できなかったため登録していません。\n「位置未確認データ」から確認してください。`);
+  }catch(e){
+    $('importResult').innerHTML=`<div class="import-status error">エラー：${esc(e.message)}</div>`;
+  }finally{
+    if(btn){btn.disabled=false;btn.classList.remove('importing');btn.textContent='名簿を取り込む';}
+  }
 }
 function renderPendingImports(){
   const panel=$('pendingImportPanel'),list=$('pendingImportList'),sum=$('pendingImportSummary');if(!panel||!list||!sum)return;

@@ -159,7 +159,7 @@
         <div class="card-title">Excel / CSV 名簿取り込み</div>
         <div class="notice">🔐 取り込み時に住所は位置情報へ変換し、あいサポには保存しません。保存する名簿情報は「党員ID・苗字・位置情報」のみです。位置を取得できないデータは登録せず、取り込み後に確認できます。</div>
         <label class="label">Excel / CSV</label><input id="contactImportFile" type="file" accept=".xlsx,.xls,.csv">
-        <button class="btn primary full" onclick="importContactsFile()">名簿を取り込む</button>
+        <button id="contactImportBtn" class="btn primary full" onclick="importContactsFile()">名簿を取り込む</button>
         <div id="importResult" class="import-result"></div><div id="pendingImportPanel" class="notice warning hidden"><strong>⚠ 位置未確認データ</strong><div id="pendingImportSummary"></div><div id="pendingImportList"></div></div>
       </div>
     </section>
