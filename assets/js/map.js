@@ -58,45 +58,6 @@ async function getCurrentPositionSmart(){
   }
 }
 
-async function fillAddressFromCurrentLocation(){
-  try{
-    const p=await getCurrentPositionSmart();
-    const lat=p.coords.latitude,lng=p.coords.longitude;
-    $('lat').value=lat;$('lng').value=lng;
-    const address=await reverseAddress(lat,lng);
-    if(address)$('fullAddress').value=address;
-    if(map)map.setView([lat,lng],18);
-  }catch(err){
-    alert(geoErrorMessage(err));
-  }
-}
-
-async function geocodeRecordAddress(){
-  const address=String($('fullAddress')?.value||'').trim();
-  if(!address){alert('住所を入力してください');return}
-  try{
-    const res=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=ja&q=${encodeURIComponent(address)}`);
-    const data=await res.json();
-    if(!data[0]){alert('住所から位置を取得できませんでした');return}
-    const lat=Number(data[0].lat),lng=Number(data[0].lon);
-    $('lat').value=lat;$('lng').value=lng;
-    if(map)map.setView([lat,lng],17);
-    alert('位置を取得しました。保存してください。');
-  }catch(_){
-    alert('位置取得に失敗しました');
-  }
-}
-
-function openRecordGoogleMaps(){
-  const lat=Number($('lat')?.value),lng=Number($('lng')?.value);
-  const address=String($('fullAddress')?.value||'').trim();
-  let q='';
-  if(Number.isFinite(lat)&&Number.isFinite(lng)&&lat&&lng)q=`${lat},${lng}`;
-  else if(address)q=address;
-  else {alert('住所または現在地を入力してください');return}
-  window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,'_blank','noopener');
-}
-
 function initMap(){if(map)return;map=L.map('map').setView([33.5902,130.4017],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);map.on('click',async e=>{const address=await reverseAddress(e.latlng.lat,e.latlng.lng);openEdit({id:'',lat:e.latlng.lat,lng:e.latlng.lng,fullAddress:address,status:'unvisited',type:'戸建て',date:today(),source:'map',memberType:'general'},true)});setTimeout(()=>map.invalidateSize(),100)}
 function priorityBadge(memberType){return memberType==='party_member'?'★':memberType==='supporter'?'♥':''}
 function recordMemberType(r){return r.memberType||'general'}
@@ -137,7 +98,6 @@ function icon(r){
     tooltipAnchor:[0,-43]
   })
 }
-function contactIcon(c){const b=priorityBadge(c.memberType);return L.divIcon({className:'',html:`<div class="contact-pin ${c.memberType==='party_member'?'member':'support'}">${b||'○'}</div>`,iconSize:[30,30],iconAnchor:[15,15]})}
 function renderMarkers(){
   if(!map)return;
   Object.values(markers).forEach(m=>map.removeLayer(m));

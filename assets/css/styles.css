@@ -219,7 +219,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 .contact-list-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px}
 
 
-/* Ver.2.7.1 mobile refinement */
 @media(max-width:820px){
   body{background:#fffaf5}
 
@@ -550,7 +549,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.7.2 - true phone layout */
 .login-card .btn.primary{margin-top:20px}
 
 @media (max-width: 700px){
@@ -654,7 +652,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.7.4 tooltips */
 .has-tip{position:relative}
 @media (hover:hover) and (pointer:fine){
   .has-tip::after{
@@ -725,7 +722,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 @keyframes tipIn{from{opacity:0;transform:translateX(-50%) translateY(5px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 
 
-/* Ver.2.7.5 — map-first mobile UI */
 .mobile-user-actions,.mobile-map-meta,.mobile-map-legend{display:none}
 
 @media(max-width:700px){
@@ -883,7 +879,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.7.7 — legend/count are outside filter panel */
 .desktop-map-meta{
   display:block;
   margin:0 2px 8px;
@@ -912,7 +907,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.7.8 — list-first filtering, map-first viewing */
 .card-actions{
   display:flex;
   justify-content:flex-end;
@@ -952,12 +946,10 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   .list-map-btn span{display:none}
 }
 
-/* Ver.2.7.9 — fixed official あいサポ brand mark */
 .aisapo-official-mark{overflow:visible}
 .brand-name span{color:#ff8614}
 .brand-name b{color:#4b9347}
 
-/* Ver.2.8.0 — heart handakuten in ポ */
 .po-heart{
   position:relative;
   display:inline-block;
@@ -974,7 +966,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.1 — map is view-only; activity summaries live in 活動状況 */
 .map-only-layout{
   display:block!important;
 }
@@ -1026,7 +1017,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   .activity-summary-card{padding:14px}
 }
 
-/* Ver.2.8.2 — mobile admin user cards */
 .admin-user-role{font-weight:800;margin-bottom:7px}
 .admin-area-note{display:inline-block;margin-top:4px;color:var(--muted);font-size:12px}
 .admin-user-actions{display:flex;flex-wrap:wrap;gap:8px}
@@ -1079,7 +1069,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.3 — mobile admin select / automatic area center / visible map controls */
 .area-auto-note{
   margin:10px 0 16px;
   padding:10px 12px;
@@ -1154,7 +1143,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.4 — mobile account controls + collapsible list filters */
 .list-search-tools{
   display:grid;
   grid-template-columns:minmax(0,1fr) auto;
@@ -1234,7 +1222,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.5 — mobile detail modal single-scroll layout */
 @media(max-width:700px){
   #editModal.modal-bg{
     padding:0!important;
@@ -1303,7 +1290,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.6 — mobile context cleanup, map heading restored, refreshed logo */
 .aisapo-official-mark{
   width:58px;
   height:58px;
@@ -1336,7 +1322,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.7 — exact supplied あいサポ logo image */
 .brand-image-lockup{
   display:flex;
   align-items:center;
@@ -1368,7 +1353,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.8 — visit date alignment + branch communication */
 .branch-message-heading{
   display:grid;
   grid-template-columns:auto minmax(0,1fr) auto;
@@ -1453,7 +1437,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   }
 }
 
-/* Ver.2.8.9 — map markers: friendly teardrop pins + visit warning */
 .aisapo-leaflet-marker{background:transparent!important;border:0!important}
 .pin-wrap{position:relative;width:42px;height:48px;filter:drop-shadow(0 3px 4px rgba(68,52,38,.22))}
 .pin{
@@ -1480,7 +1463,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 .legend-warning{color:#dc2626;font-weight:700}
 
 
-/* Ver.2.8.10 — softer, friendlier Leaflet pins */
 .aisapo-leaflet-marker{background:transparent!important;border:0!important}
 .cute-pin-wrap{
   position:relative;width:48px;height:56px;
@@ -1546,7 +1528,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   .cute-map-legend>span{font-size:10px}
 }
 
-/* Ver.2.8.11 — unified action dashboard */
 .analysis-action-group-label{
   margin:18px 2px 9px;
   font-size:14px;
@@ -1555,7 +1536,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 .priority-section .analysis-action-group-label:first-of-type{margin-top:12px}
 
-/* Ver.2.8.12 — branch message actions / quick-filter visual language */
 .branch-message-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
 .branch-message-actions{display:flex;gap:8px;flex-wrap:wrap}
 .branch-message-actions button{border:1px solid #eadbc9;background:#fffaf4;border-radius:10px;padding:7px 12px;font-weight:700;cursor:pointer}
@@ -1568,7 +1548,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 @media(max-width:700px){.branch-message-footer{align-items:flex-end}.branch-message-actions button{padding:7px 10px}.filter-dot{width:20px;height:20px;flex-basis:20px;font-size:12px}}
 
 
-/* Ver.2.8.13 — branch-message modal should never be transparent */
 #branchMessageModal.modal-bg{
   background:rgba(42,38,34,.48)!important;
   backdrop-filter:none!important;
@@ -1592,7 +1571,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.15 — center branch message modal */
 #branchMessageModal.modal-bg{
   position:fixed!important;
   inset:0!important;
@@ -1654,7 +1632,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   }
 }
 
-/* Ver.2.8.17 — poster follow integration */
 .follow-subsection.poster-follow{
   margin-top:18px;
   padding-top:16px;
@@ -1666,7 +1643,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 .detail-subtitle.orange{color:#e87516;}
 
-/* Ver.2.8.17 — activity icons + desktop clickable affordance */
 .activity-icon{
   width:52px;height:52px;border-radius:17px;
   display:flex;align-items:center;justify-content:center;
@@ -1694,7 +1670,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 /* v2.8.21: 訪問ステータスの表示名と地図/一覧の並びを統一 */
 
 
-/* Ver.2.8.23 — desktop admin card width and readable form width */
 @media (min-width:701px){
   #view-admin .admin-user-create-panel{grid-column:1/-1;}
   #view-admin .admin-user-create-panel > label,
@@ -1709,7 +1684,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.24 — admin polish, status consistency, filters */
 .status-icon{display:inline-grid;place-items:center;min-width:1.1em;margin-right:4px;font-weight:900}
 .status-badge{font-weight:800}
 .status-btn{display:flex;align-items:center;justify-content:center;gap:5px}
@@ -1732,7 +1706,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   .mobile-user-actions{gap:6px}
 }
 
-/* Ver.2.8.26 — collapsible map/list filters */
 .filters-collapsed{display:none!important}
 .map-filter-tools{
   display:flex;
@@ -1762,7 +1735,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.26 — mobile usability / filter polish */
 .filter-funnel-icon{
   width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.9;
   stroke-linejoin:round;stroke-linecap:round;
@@ -1806,7 +1778,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.27 — compact map filters and friendlier member badges */
 .map-quick-filters label{gap:8px}
 .map-priority-filter select{min-width:132px}
 .member-badge.member-party{background:#fff8e7;color:#72500b}
@@ -1824,7 +1795,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 .admin-areas-toggle{min-width:140px}
 
 
-/* Ver.2.8.29 — compact map filters and in-app user editor */
 .map-quick-filters>label:not(.map-priority-filter){
   border:0!important;background:transparent!important;box-shadow:none!important;
   padding:5px 4px!important;border-radius:0!important;min-height:auto!important;
@@ -1844,7 +1814,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.30 — compact map header + Google Maps near address */
 .map-meta-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
 .map-meta-actions .map-filter-toggle{margin:0;min-height:34px;padding:6px 10px}
 .map-legend-row{align-items:center}
@@ -1858,7 +1827,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   .address-google-row .google-maps-btn{width:100%}
 }
 
-/* Ver.2.8.31 — multi-select revisit priority + compact detail header */
 .detail-identity-copy{min-width:0;flex:1}
 .detail-summary-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .detail-summary-badges{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -1875,7 +1843,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   .map-quick-filters>label{flex:0 0 auto!important;width:auto!important;padding:4px 2px!important}
 }
 
-/* Ver.2.8.32 — mobile filter button, password visibility, login history */
 .password-field{position:relative;display:flex;align-items:center}
 .password-field input{width:100%;padding-right:52px}
 .password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:40px;height:40px;border:0;background:transparent;border-radius:10px;font-size:20px;cursor:pointer}
@@ -1895,7 +1862,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.33 — compact list cards, always-visible mobile legend, cute password toggle */
 .card-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
 .card-title-row .card-title{min-width:0;flex:1}
 .card-title-row .list-map-btn{flex:0 0 auto;margin:0}
@@ -1914,11 +1880,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   .card-title-row .list-map-btn{width:36px;height:36px;min-width:36px;border-radius:11px;font-size:16px}
 }
 
-/* Ver.2.8.35 role avatars */
 .user-avatar,.mobile-user-avatar{overflow:hidden;background:transparent;padding:0}
 .role-avatar-img{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
 
-/* Ver.2.8.35 — avoid duplicate password visibility controls on desktop */
 @media (min-width:701px){
   #loginPasswordToggle{display:none!important}
   .password-field input{padding-right:16px}
@@ -1927,10 +1891,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   #loginPasswordToggle{display:grid!important}
 }
 
-/* Ver.2.8.36 — custom cute password visibility icons */
 .password-cute-icon{display:block;width:34px;height:32px;object-fit:contain;border-radius:10px;background:transparent;filter:none}
 
-/* Ver.2.8.38: 活動状況から一覧へ遷移した際の戻る導線 */
 .list-heading{position:relative;align-items:center}
 .list-back-analysis{margin-left:auto;display:inline-flex;align-items:center;gap:5px;padding:9px 13px;white-space:nowrap;color:#28763f;border-color:#cfe2d1;background:#f7fbf6}
 .list-back-analysis svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -1942,7 +1904,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.41 — mobile floating return + fixed detail action bar */
 .list-back-analysis-floating,
 .mobile-detail-action-bar{display:none}
 
@@ -2004,7 +1965,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   #editModal .detail-footer{padding-bottom:calc(92px + env(safe-area-inset-bottom))!important}
 }
 
-/* Ver.2.8.42 — mobile scroll-to-top + delete in fixed detail bar */
 .scroll-top-floating{display:none}
 @media(max-width:700px){
   .scroll-top-floating:not(.hidden){position:fixed;right:14px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:1445;display:inline-flex;align-items:center;gap:5px;min-height:44px;padding:9px 13px;border:1px solid #f0c8a6;border-radius:999px;background:rgba(255,255,255,.95);color:#b7662d;font-size:12px;font-weight:900;box-shadow:0 8px 24px rgba(72,54,38,.16);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
@@ -2014,7 +1974,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 
 
-/* Ver.2.8.43 — detail actions follow on PC/mobile + remove duplicate footer controls */
 #editModal .mobile-detail-action-bar{
   position:fixed;
   z-index:1605;
@@ -2075,7 +2034,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   }
 }
 
-/* Ver.2.8.44 — password character toggles and form spacing */
 .password-field-character{position:relative;width:100%}
 .password-field-character input{width:100%;padding-right:64px!important}
 .password-character-toggle{
@@ -2092,7 +2050,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
  #passwordModal .password-change-submit{margin-top:20px!important}
 }
 
-/* Ver.2.8.45 — detail action hierarchy */
 #editModal .mobile-detail-action-bar{
   grid-template-columns:minmax(0,1fr) minmax(0,1.25fr)!important;
   grid-template-areas:
@@ -2136,7 +2093,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   }
 }
 
-/* Ver.2.8.46 — reliable mobile tap target for password toggle */
 .password-field-character{position:relative!important}
 .password-character-toggle{
   pointer-events:auto!important;
@@ -2147,7 +2103,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 }
 .password-character-toggle img{pointer-events:none!important;user-select:none;-webkit-user-select:none}
 
-/* Ver.2.8.47 — 活動状況の見出しアイコンを統一 */
 .activity-icon-image{
   overflow:hidden;
   padding:0!important;
@@ -2160,9 +2115,8 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
   object-position:center top;
   transform:scale(1.08);
 }
-\n\n/* Ver.2.8.51 — simple password eye + visit round/history */\n.password-eye-svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}\n.password-toggle.simple-eye-toggle,.password-character-toggle{color:#6d675f;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:50%!important}\n.password-toggle.simple-eye-toggle:hover,.password-character-toggle:hover{background:#f7f3ee!important}\n.password-character-toggle img{display:none!important}\n.visit-help{margin-bottom:12px}\n.visit-posting-chip{margin-top:10px;margin-bottom:10px}\n.visit-history-wrap{margin-top:18px;border-top:1px solid #eee3d6;padding-top:14px}\n.visit-history-list{display:grid;gap:10px;margin-top:10px}\n.visit-history-item{border:1px solid #eadfd2;background:#fffdfa;border-radius:14px;padding:12px 14px}\n.visit-history-head{display:flex;justify-content:space-between;gap:12px;align-items:center;color:#62594f}\n.visit-history-head strong{color:#2f6d4f}\n.visit-history-result{font-weight:700;margin-top:5px}\n.visit-history-posted,.visit-history-next,.visit-history-memo{font-size:13px;color:#6e675f;margin-top:5px}\n.visit-history-next{color:#b85d18;font-weight:600}\n@media(max-width:700px){.password-eye-svg{width:22px;height:22px}.visit-history-item{padding:11px 12px}}\n
+\n\n\n.password-eye-svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}\n.password-toggle.simple-eye-toggle,.password-character-toggle{color:#6d675f;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:50%!important}\n.password-toggle.simple-eye-toggle:hover,.password-character-toggle:hover{background:#f7f3ee!important}\n.password-character-toggle img{display:none!important}\n.visit-help{margin-bottom:12px}\n.visit-posting-chip{margin-top:10px;margin-bottom:10px}\n.visit-history-wrap{margin-top:18px;border-top:1px solid #eee3d6;padding-top:14px}\n.visit-history-list{display:grid;gap:10px;margin-top:10px}\n.visit-history-item{border:1px solid #eadfd2;background:#fffdfa;border-radius:14px;padding:12px 14px}\n.visit-history-head{display:flex;justify-content:space-between;gap:12px;align-items:center;color:#62594f}\n.visit-history-head strong{color:#2f6d4f}\n.visit-history-result{font-weight:700;margin-top:5px}\n.visit-history-posted,.visit-history-next,.visit-history-memo{font-size:13px;color:#6e675f;margin-top:5px}\n.visit-history-next{color:#b85d18;font-weight:600}\n@media(max-width:700px){.password-eye-svg{width:22px;height:22px}.visit-history-item{padding:11px 12px}}\n
 
-/* Ver.2.8.52 — visit history is always visible; status becomes automatic summary */
 .visit-summary{border:1px solid #eadfd2;background:#fffdfa;border-radius:14px;padding:13px 15px}
 .visit-summary-main{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .visit-summary-main strong{font-size:17px;color:#2f6d4f}
@@ -2173,7 +2127,6 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px
 .visit-history-legacy{margin-top:6px;font-size:12px;color:#9a8d7f}
 @media(max-width:700px){.visit-summary-main{align-items:flex-start;flex-direction:column;gap:4px}.visit-summary-main strong{font-size:16px}}
 
-/* Ver.2.8.55 privacy/location */
 .record-location-map{height:220px;border-radius:12px;overflow:hidden;border:1px solid var(--line,#d7dce2);margin:8px 0 10px;background:#eef1f4}
 .pending-address{padding:10px 12px;border:1px solid #e1e5ea;border-radius:10px;margin:8px 0 10px;word-break:break-all;background:#fafafa}
 #pendingImportList{display:grid;gap:8px;margin-top:10px}

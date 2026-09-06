@@ -4,12 +4,6 @@ const MEMBER_RANK={party_member:0,supporter:1,general:2,unknown:3,'':3};
 let contactListExpanded=false;
 async function loadContacts(){try{const d=await api('listContacts',{areaId:currentAreaId});contacts=d.contacts||[];renderContacts();renderContactSelect();if(map)renderMarkers();}catch(e){msg('appMsg',e.message)}}
 function memberTypeLabel(v){return MEMBER_LABELS[v]||MEMBER_LABELS.unknown}
-function contactSearchChanged(){
-  const q=($('contactSearch')?.value||'').trim();
-  if(q)contactListExpanded=true;
-  renderContacts();
-}
-function toggleContactList(){contactListExpanded=!contactListExpanded;renderContacts()}
 function renderContacts(){
   const q=($('contactSearch')?.value||'').toLowerCase();
   const list=contacts.filter(c=>JSON.stringify(c).toLowerCase().includes(q)).sort((a,b)=>(MEMBER_RANK[a.memberType]??3)-(MEMBER_RANK[b.memberType]??3)||String(a.name||'').localeCompare(String(b.name||''),'ja'));
@@ -31,7 +25,6 @@ function renderContacts(){
     </div>`;
   }).join(''):'<div class="panel notice">名簿はまだありません。</div>'
 }
-function newContact(){openContact({areaId:currentAreaId,name:'',lastName:'',firstName:'',lastNameKana:'',firstNameKana:'',partyId:'',postalCode:'',fullAddress:'',phone:'',email:'',memberType:'unknown',birthDate:'',gender:'',occupation:'',approvedAt:'',branchParticipation:'',joinReason:'',sourceBranch:'',lat:'',lng:'',referrer:'',supporter:'',memo:''})}
 function openContact(c){
   editingContact={...c};
   $('contactId').value=c.contactId||'';$('contactPartyId').value=c.partyId||'';$('contactLastName').value=c.lastName||'';$('contactFirstName').value=c.firstName||'';

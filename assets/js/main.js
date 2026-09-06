@@ -28,12 +28,6 @@ function toggleMapFilters(force){
     timer=setTimeout(()=>tip.classList.remove('show'),1800);
   },true);
 })();
-
-
-function toggleMobileLegend(){
-  // Ver.2.8.33: スマホでは地図の見方を常時表示。旧呼び出し互換のため残す。
-  document.getElementById('mobileMapLegend')?.classList.remove('hidden');
-}
 function syncMobileMapMeta(){
   const src=document.querySelector('.map-legend-inline');
   const dst=document.getElementById('mobileMapLegend');
@@ -54,7 +48,7 @@ function syncMobileUser(){
   const src=candidates.find(Boolean);
   if(src && src.textContent.trim()) out.textContent=src.textContent.trim();
 }
-(function initV276Sync(){
+(function initResponsiveSync(){
   const boot=()=>{syncMobileMapMeta();syncMobileUser();};
   document.addEventListener('DOMContentLoaded',boot);
   window.addEventListener('load',boot);

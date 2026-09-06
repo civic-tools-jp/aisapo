@@ -1,9 +1,7 @@
 "use strict";
 async function loadAdmin(){try{const d=await api('adminData');branches=d.branches||branches;areas=d.areas||areas;users=d.users||[];window.loginHistory=d.loginHistory||[];$('newBranch').innerHTML=branches.map(b=>`<option value="${esc(b.branchId)}">${esc(b.name)}</option>`).join('');$('areaBranch').innerHTML=$('newBranch').innerHTML;syncNewUserArea();renderUsers();renderAdminAreas();renderLoginHistory();if($('loginHistoryPanel'))$('loginHistoryPanel').classList.toggle('hidden',window.appSession?.role!=='system_admin')}catch(e){msg('appMsg',e.message)}}
 function syncNewUserArea(){const role=$('newRole').value,branchId=$('newBranch').value;$('newAreaWrap').classList.toggle('hidden',role!=='member');$('newArea').innerHTML=areas.filter(a=>String(a.branchId)===String(branchId)).map(a=>`<option value="${esc(a.areaId)}">${esc((a.city?a.city+' ':'')+a.name)}</option>`).join('')}
-function areaOptionsForUser(u){return areas.filter(a=>String(a.branchId)===String(u.branchId)).map(a=>`<option value="${esc(a.areaId)}" ${String(a.areaId)===String(u.areaId)?'selected':''}>${esc((a.city?a.city+' ':'')+a.name)}</option>`).join('')}
 function roleLabel(role){return ({system_admin:'システム管理者',leader:'支部管理者',member:'一般利用者'})[role]||role}
-function branchOptionsForUser(u){return branches.map(b=>`<option value="${esc(b.branchId)}" ${String(b.branchId)===String(u.branchId)?'selected':''}>${esc(b.name)}</option>`).join('')}
 function renderUsers(){
   const q=String($('adminUserSearch')?.value||'').trim().toLowerCase(),role=$('adminUserRole')?.value||'',active=$('adminUserActive')?.value||'';
   const rows=users.filter(u=>{
@@ -54,11 +52,9 @@ async function saveUserEditFromModal(){
   try{await api('updateUser',{userId,user:{name,role,branchId,areaId}});closeUserEditModal();await loadAdmin();}
   catch(e){alert(e.message)}
 }
-async function saveUserEdit(userId,user){try{await api('updateUser',{userId,user});await loadAdmin();alert('ユーザー情報を更新しました')}catch(e){alert(e.message)}}
 function toggleAdminAreas(){const box=$('areasTable'),btn=$('areasToggleBtn');const opening=box.classList.contains('hidden');box.classList.toggle('hidden',!opening);btn.textContent=opening?'一覧を閉じる ▲':'一覧を表示 ▼'}
 function renderAdminAreas(){$('areasTable').innerHTML=`<table class="admin-table"><tr><th>支部</th><th>市</th><th>エリア</th><th>操作</th></tr>${areas.map(a=>`<tr><td>${esc(branches.find(b=>b.branchId===a.branchId)?.name||a.branchId)}</td><td>${esc(a.city||'')}</td><td>${esc(a.name)}</td><td>${window.appSession?.role==='system_admin'?`<button class="mini-btn danger" onclick="deleteArea('${esc(a.areaId)}','${esc(a.name)}')">削除</button>`:''}</td></tr>`).join('')}</table>`}
 async function createUser(){try{await api('createUser',{user:{loginId:$('newLoginId').value.trim(),name:$('newName').value.trim(),password:$('newPassword').value,role:$('newRole').value,branchId:$('newBranch').value,areaId:$('newRole').value==='member'?$('newArea').value:''}});$('newLoginId').value=$('newName').value=$('newPassword').value='';await loadAdmin();alert('ユーザーを発行しました。一般利用者は設定した活動エリアだけ閲覧できます。')}catch(e){alert(e.message)}}
-async function saveUserArea(userId){try{const areaId=$('ua_'+userId).value;await api('setUserArea',{userId,areaId});await loadAdmin();alert('固定活動エリアを更新しました')}catch(e){alert(e.message)}}
 async function resetUserPassword(userId,loginId){const temp=prompt(`${loginId} の新しい仮パスワードを入力してください。\n10文字以上・英字と数字を含めてください。`);if(temp===null)return;try{await api('resetPassword',{userId,temporaryPassword:temp});await loadAdmin();alert('仮パスワードへリセットしました。次回ログイン時に本人のパスワード変更が必須になります。')}catch(e){alert(e.message)}}
 
 async function toggleUserActive(userId,active){if(!confirm(active?'このユーザーを有効化しますか？':'このユーザーを無効化しますか？'))return;try{await api('setUserActive',{userId,active});await loadAdmin()}catch(e){alert(e.message)}}

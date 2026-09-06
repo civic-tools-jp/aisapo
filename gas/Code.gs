@@ -1,3 +1,6 @@
+// あいサポ Ver.2.8.56 API — production source
+// Source cleanup only: no data migration code or one-off maintenance functions.
+
 const SHEETS={USERS:'Users',BRANCHES:'Branches',AREAS:'Areas',CONTACTS:'Contacts',RECORDS:'Records',VISIT_HISTORY:'VisitHistory',SESSIONS:'Sessions',BRANCH_MESSAGES:'BranchMessages',LOGIN_HISTORY:'LoginHistory'};
 const USER_HEADERS=['userId','loginId','name','passwordHash','salt','role','branchId','areaId','active','mustChangePassword','createdAt','updatedAt'];
 const BRANCH_HEADERS=['branchId','name','prefecture','active'];
@@ -9,7 +12,7 @@ const SESSION_HEADERS=['token','userId','expiresAt','createdAt'];
 const BRANCH_MESSAGE_HEADERS=['messageId','fromBranchId','toBranchId','title','body','createdBy','createdByName','createdAt','active'];
 const LOGIN_HISTORY_HEADERS=['logId','userId','loginId','name','success','loggedAt'];
 
-function doGet(){return json_({ok:true,name:'あいサポ Ver.2.8.55 API'});}
+function doGet(){return json_({ok:true,name:'あいサポ Ver.2.8.56 API'});}
 function doPost(e){try{const p=JSON.parse((e.postData&&e.postData.contents)||'{}');if(p.action==='setup')return json_(setup_(p));if(p.action==='login')return json_(login_(p));const user=auth_(p.token);switch(p.action){
 case'bootstrap':return json_(bootstrap_(user));
 case'listRecords':return json_(listRecords_(user,p));case'listVisitHistory':return json_(listVisitHistory_(user,p));case'saveRecord':return json_(saveRecord_(user,p.record||{},p.visitEntry||null));case'deleteRecord':return json_(deleteRecord_(user,p));
@@ -24,72 +27,6 @@ function setup_(p){const ss=SpreadsheetApp.getActive();ensureSheet_(ss,SHEETS.US
 const bs=ss.getSheetByName(SHEETS.BRANCHES);if(bs.getLastRow()===1)bs.appendRow(['branch_fukuoka_1','福岡第1支部','福岡県',true]);
 const as=ss.getSheetByName(SHEETS.AREAS);if(as.getLastRow()===1)as.appendRow(['area_higashi','branch_fukuoka_1','福岡市','東区',33.6452,130.4319,true]);
 const us=ss.getSheetByName(SHEETS.USERS);if(us.getLastRow()===1){const salt=uuid_(),pw=p.adminPassword||'ChangeMe123!';us.appendRow([uuid_(),p.adminLoginId||'admin',p.adminName||'管理者',hash_(pw,salt),salt,'system_admin','','',true,false,now_(),now_()]);}return{ok:true,message:'初期設定が完了しました'};}
-
-// Ver.2.8.55: 既存の名簿由来データから活動に不要な個人情報を削除します。実行前にスプレッドシートをバックアップしてください。
-
-// Ver.2.8.51: 訪問巡回・履歴管理を追加。初回だけ実行してもよい（API利用時にも自動作成されます）。
-
-// Ver.2.8.24: visitCount列を追加し、既存の名簿取込「党員」で支持ランク未判定のものだけBへ設定します。1回だけ実行してください。
-
-// Ver.2.8.26: 既存の名簿取込「党員」で支持ランク未判定のものを再確認しBへ補完します。1回だけ実行してください。
-
-// Ver.2 → Ver.2.1 移行。現在のシートを残しつつ構造を更新します。1回だけ実行してください。
-
-// Ver.2.1 認証拡張：Users に mustChangePassword を追加します。1回だけ実行してください。
-
-
-// Ver.1 の「訪問記録」を Ver.2.1.2 の Records に移行します。1回だけ実行してください。
-// 元シートは削除せず、さらにバックアップコピーも作成します。
-
-
-// ===== Ver.2.8.55 maintenance / cleanup =====
-// Run auditV2855Cleanup() first. It never deletes data.
-function auditV2855Cleanup(){
-  const ss=SpreadsheetApp.getActive();
-  const required=Object.values(SHEETS);
-  const missing=required.filter(name=>!ss.getSheetByName(name));
-  const records=ss.getSheetByName(SHEETS.RECORDS);
-  const recordsRows=records?Math.max(0,records.getLastRow()-1):0;
-  const legacy=[];
-  ss.getSheets().forEach(sh=>{
-    const name=sh.getName();
-    if(name==='Posters'||name==='訪問記録'||/^訪問記録_backup/i.test(name)){
-      legacy.push({name,rows:Math.max(0,sh.getLastRow()-1),columns:sh.getLastColumn()});
-    }
-  });
-  const result={
-    ok:missing.length===0,
-    version:'2.8.55',
-    requiredSheets:required,
-    missingSheets:missing,
-    recordsRows,
-    legacySheets:legacy,
-    canCleanup:missing.length===0 && !!records,
-    note:'この関数は確認のみで、シートを削除しません。'
-  };
-  Logger.log(JSON.stringify(result,null,2));
-  return JSON.stringify(result,null,2);
-}
-
-// auditV2855Cleanup() の結果を確認した後にだけ実行してください。
-// 誤操作防止のため確認文字列が一致しない限り削除しません。
-function cleanupV2855LegacySheets(confirmText){
-  if(confirmText!=='DELETE_LEGACY_SHEETS') throw Error('確認文字列が違います。先に auditV2855Cleanup() を実行してください。');
-  const ss=SpreadsheetApp.getActive();
-  const missing=Object.values(SHEETS).filter(name=>!ss.getSheetByName(name));
-  if(missing.length) throw Error('現行シートが不足しています: '+missing.join(', '));
-  const records=ss.getSheetByName(SHEETS.RECORDS);
-  if(!records||records.getLastRow()<2) throw Error('Recordsにデータがないため、安全のため削除を中止しました。');
-  const targets=ss.getSheets().filter(sh=>{
-    const name=sh.getName();
-    return name==='Posters'||name==='訪問記録'||/^訪問記録_backup/i.test(name);
-  });
-  const deleted=[];
-  targets.forEach(sh=>{deleted.push(sh.getName());ss.deleteSheet(sh);});
-  const result={ok:true,deletedSheets:deleted,count:deleted.length};
-  Logger.log(JSON.stringify(result,null,2));
-  return JSON.stringify(result,null,2);
-}
 
 // ===== Authentication =====
 function login_(p){
@@ -108,8 +45,6 @@ function login_(p){
 }
 function logLoginAttempt_(x){try{const ss=SpreadsheetApp.getActive();ensureSheet_(ss,SHEETS.LOGIN_HISTORY,LOGIN_HISTORY_HEADERS);const u=x.user||{};ss.getSheetByName(SHEETS.LOGIN_HISTORY).appendRow([uuid_(),u.userId||'',x.loginId||u.loginId||'',u.name||'',!!x.success,now_()]);}catch(_){}}
 
-
-// Ver.2.8.8: 支部間の共有連絡を追加します。1回だけ実行してください。
 
 // ===== Branch messages =====
 function listBranchMessages_(u,p){
@@ -348,16 +283,6 @@ function deleteRecord_(u,p){
   sh.deleteRow(old._row);
   return{ok:true,deleted:true};
 }
-
-
-function maskContactAddress_(v){
-  const s=String(v||'').trim();
-  if(!s)return'';
-  const m=s.match(/^(.*?\d+丁目)/);
-  if(m)return m[1];
-  const n=s.search(/[0-9０-９]/);
-  return n>0?s.slice(0,n):s;
-}
 function restrictedContactForMember_(c){
   const x=Object.assign({},c);
   // 一般利用者にも現場連絡に必要な住所・電話は表示する。
@@ -552,22 +477,9 @@ function deleteArea_(u,p){requireSystemAdmin_(u);const areaId=String(p.areaId||'
 function requireAdmin_(u){if(!['leader','prefecture_admin','system_admin'].includes(u.role))throw Error('管理権限がありません');}
 function requireSystemAdmin_(u){if(u.role!=='system_admin')throw Error('システム管理者権限が必要です');}
 function isGlobal_(u){return['prefecture_admin','system_admin'].includes(u.role);}
-function canAccessBranch_(u,branchId){return isGlobal_(u)||String(branchId)===String(u.branchId);}
 function canAccessRecord_(u,r){return canAccessAreaId_(u,r.areaId);}
 
 function bool_(v){return v===true||v===1||String(v||'').toLowerCase()==='true';}
-function dateKey_(v){
-  if(v===null||v===undefined||v==='')return '';
-  if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v)){
-    return Utilities.formatDate(v,Session.getScriptTimeZone()||'Asia/Tokyo','yyyy-MM-dd');
-  }
-  const s=String(v).trim();
-  const m=s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-  if(m)return m[1]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[3]).padStart(2,'0');
-  const d=new Date(s);
-  if(!isNaN(d))return Utilities.formatDate(d,Session.getScriptTimeZone()||'Asia/Tokyo','yyyy-MM-dd');
-  return s;
-}
 
 
 // ===== Shared utilities =====
@@ -621,9 +533,6 @@ function cleanupSessions_(){const sh=SpreadsheetApp.getActive().getSheetByName(S
 function hash_(password,salt){const bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(salt)+'|'+String(password),Utilities.Charset.UTF_8);return bytes.map(b=>(b+256)%256).map(b=>('0'+b.toString(16)).slice(-2)).join('');}
 function uuid_(){return Utilities.getUuid().replace(/-/g,'');}function now_(){return new Date().toISOString();}function truth_(v){return v===true||String(v).toLowerCase()==='true'||v===1;}function json_(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);}
 
-// Ver.2.2: ユーザー固定エリア・名簿拡張。1回だけ実行してください。
-
-// Ver.2.3: 党員名簿正式項目・通常訪問先の電話/メールを追加。1回だけ実行してください。
 
 
 // Ver.2.8.32: ログイン履歴シートを追加します。1回だけ実行してください。

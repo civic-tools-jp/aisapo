@@ -102,16 +102,6 @@ function openEdit(r,isNew){editing={...r,isNew};$('recordId').value=r.id||'';$('
   }
 
   const editModal=$('editModal');editModal.style.display='flex';loadVisitHistory(r.id||'',r);requestAnimationFrame(()=>{editModal.scrollTop=0;const detail=editModal.querySelector('.detail-modal');if(detail)detail.scrollTop=0;window.scrollTo({top:0,left:0,behavior:'auto'});});}
-function toggleRecordContactLink(){
-  const checked=!!$('linkContactCheck')?.checked;
-  $('recordContactWrap')?.classList.toggle('hidden',!checked);
-  if(checked)renderContactSelect();
-  if(!checked){
-    if($('recordContactSearch'))$('recordContactSearch').value='';
-    if($('recordContact'))$('recordContact').value='';
-    renderLinkedContactInfo('');
-  }
-}
 function renderLinkedContactInfo(contactId){
   const c=contacts.find(x=>String(x.contactId)===String(contactId||''));
   const box=$('linkedContactInfo');
@@ -146,13 +136,6 @@ function renderContactSelect(preferred){
 }
 
 function hasFollow(r){return boolValue(r.followParty)||boolValue(r.followSupporter)||boolValue(r.followDetails)}
-function followLabel(r){
-  const a=[];
-  if(boolValue(r.followParty))a.push('⭐ 党員希望');
-  if(boolValue(r.followSupporter))a.push('🟠 サポーター希望');
-  if(boolValue(r.followDetails))a.push('💬 詳細希望');
-  return a.join(' / ');
-}
 function toggleFollowFields(){
   const on=$('followParty')?.checked||$('followSupporter')?.checked||$('followDetails')?.checked;
   $('followFields')?.classList.toggle('hidden',!on);
@@ -293,8 +276,6 @@ async function deleteRecord(){
 }
 
 function toggleWarningFields(){const on=!!$('warning')?.checked;$('warningFields')?.classList.toggle('hidden',!on)}
-
-function newUnifiedRecord(){openEdit({id:'',lat:'',lng:'',fullAddress:'',personName:'',status:'unvisited',type:'戸建て',date:today(),source:'manual',memberType:'general'},true)}
 
 function togglePosterRequestFields(){const on=!!$('posterRequest')?.checked;$('posterRequestFields')?.classList.toggle('hidden',!on);if(!on&&$('posterReported'))$('posterReported').checked=false}
 
