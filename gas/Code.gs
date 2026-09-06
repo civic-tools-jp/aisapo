@@ -487,7 +487,7 @@ function importContacts_(u,p){
   if(!input.length)throw Error('取り込む名簿がありません');
   if(input.length>200)throw Error('1回の取込は200件までです');
   const ss=SpreadsheetApp.getActive(),sh=ss.getSheetByName(SHEETS.RECORDS);ensureHeadersByName_(sh,RECORD_HEADERS);
-  const existing=rowsWithRow_(SHEETS.RECORDS),allAreas=visibleAreas_(u).filter(a=>truth_(a.active)),branches=rows_(SHEETS.BRANCHES),branchNameById=Object.fromEntries(branches.map(b=>[String(b.branchId),String(b.name||'')]));
+  const existing=rowsWithRow_(SHEETS.RECORDS),allActiveAreas=rows_(SHEETS.AREAS).filter(a=>truth_(a.active)),allAreas=visibleAreas_(u).filter(a=>truth_(a.active)),branches=rows_(SHEETS.BRANCHES),branchNameById=Object.fromEntries(branches.map(b=>[String(b.branchId),String(b.name||'')]));
   const geocoder=Maps.newGeocoder().setLanguage('ja').setRegion('jp');
   let added=0,skipped=0,duplicateSkipped=0,geocoded=0;const failed=[];
   function detectArea_(address,sourceBranch){const a=String(address||'').replace(/\s+/g,''),sb=String(sourceBranch||'').trim();let candidates=allAreas.filter(area=>{const city=String(area.city||'').replace(/\s+/g,''),name=String(area.name||'').replace(/\s+/g,'');if(!name||!a.includes(name))return false;if(city&&!a.includes(city))return false;if(sb){const branchName=branchNameById[String(area.branchId)]||'';if(branchName&&branchName!==sb)return false;}return true;});if(candidates.length===1)return candidates[0];if(!candidates.length){candidates=allAreas.filter(area=>{const city=String(area.city||'').replace(/\s+/g,''),name=String(area.name||'').replace(/\s+/g,'');return !!name&&a.includes(name)&&(!city||a.includes(city));});if(candidates.length===1)return candidates[0];}const defaultName=String(defaultArea.name||'').replace(/\s+/g,'');if(!a||(defaultName&&a.includes(defaultName)))return defaultArea;return null;}
@@ -495,10 +495,14 @@ function importContacts_(u,p){
   for(const raw of input){
     const partyId=String(raw.partyId||'').trim(),lastName=cleanImportedPersonName_(raw.lastName),address=String(raw.fullAddress||'').trim(),memberType=normalizeMemberType_(raw.memberType);
     if(partyId&&existingPartyIds.has(partyId)){duplicateSkipped++;skipped++;continue;}
-    if(!partyId||!lastName||!address){skipped++;failed.push({partyId,lastName,address,memberType,reason:!partyId?'党員IDなし':!lastName?'苗字なし':'住所なし'});continue;}
-    const targetArea=detectArea_(address,raw.sourceBranch);if(!targetArea){skipped++;failed.push({partyId,lastName,address,memberType,reason:'活動エリアを判定できません'});continue;}
+    if(!partyId||!lastName||!address){skipped++;failed.push({partyId,lastName,address,memberType,category:'invalid',reason:!partyId?'党員IDなし':!lastName?'苗字なし':'住所なし'});continue;}
+    const targetArea=detectArea_(address,raw.sourceBranch);if(!targetArea){
+      const compact=address.replace(/\s+/g,'');
+      const outside=allActiveAreas.find(area=>{const city=String(area.city||'').replace(/\s+/g,''),name=String(area.name||'').replace(/\s+/g,'');return !!name&&compact.includes(name)&&(!city||compact.includes(city));});
+      skipped++;failed.push({partyId,lastName,address,memberType,category:outside?'outside_area':'invalid',reason:outside?'担当支部の活動エリア外です':'活動エリアを判定できません'});continue;
+    }
     let lat='',lng='';try{const geo=geocoder.geocode(address),result=geo&&geo.results&&geo.results[0];if(result&&result.geometry&&result.geometry.location){lat=Number(result.geometry.location.lat)||'';lng=Number(result.geometry.location.lng)||'';}}catch(_){}
-    if(!lat||!lng){skipped++;failed.push({partyId,lastName,address,memberType,reason:'住所を位置情報へ変換できません'});continue;}
+    if(!lat||!lng){skipped++;failed.push({partyId,lastName,address,memberType,areaId:targetArea.areaId,category:'location',reason:'住所を位置情報へ変換できません'});continue;}
     geocoded++;const now=now_(),item={id:uuid_(),branchId:targetArea.branchId,areaId:targetArea.areaId,active:true,inactiveAt:'',inactiveBy:'',inactiveReason:'',source:'import',memberType,partyId,lastName,firstName:'',lastNameKana:'',firstNameKana:'',postalCode:'',birthDate:'',gender:'',occupation:'',approvedAt:'',branchParticipation:'',joinReason:'',sourceBranch:'',contactId:'',lat,lng,area:'',address:'',fullAddress:'',personName:lastName,phone:'',email:'',status:'unvisited',type:'戸建て',household:'',contact:'',revisitPriority:'',referrer:'',supporter:['party_member','supporter'].includes(memberType)?'B':'',followParty:false,followSupporter:false,followDetails:false,followDone:false,followMemo:'',warning:false,warningReason:'',warningMemo:'',posterRequest:false,posterReported:false,posterRequestMemo:'',visitCount:0,signboard:false,posterParty:'',posterMemo:'',memo:'',date:'',startTime:'',endTime:'',durationMinutes:'',googleMapsUrl:'',assigneeId:u.userId,assigneeName:u.name,createdAt:now,updatedAt:now,updatedBy:u.name};
     writeRecordByHeader_(sh,null,item);added++;if(partyId)existingPartyIds.add(partyId);
   }
