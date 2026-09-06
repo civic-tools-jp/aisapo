@@ -1,5 +1,18 @@
 "use strict";
-window.addEventListener('load',()=>{if(session)startApp()});
+window.addEventListener('load',()=>{if(window.appSession)startApp()});
+
+
+function toggleMapFilters(force){
+  const panel=document.getElementById('mapQuickFilters');
+  if(!panel)return;
+  const open=typeof force==='boolean'?force:panel.classList.contains('filters-collapsed');
+  panel.classList.toggle('filters-collapsed',!open);
+  ['mapFilterToggle','mobileMapFilterToggle'].forEach(id=>{
+    const btn=document.getElementById(id);if(!btn)return;
+    btn.setAttribute('aria-expanded',open?'true':'false');
+    btn.innerHTML=filterToggleMarkup(open);
+  });
+}
 
 (function initTouchTips(){
   let timer=null;
@@ -15,12 +28,6 @@ window.addEventListener('load',()=>{if(session)startApp()});
     timer=setTimeout(()=>tip.classList.remove('show'),1800);
   },true);
 })();
-
-
-function toggleMobileLegend(){
-  const box=document.getElementById('mobileMapLegend');
-  if(box) box.classList.toggle('hidden');
-}
 function syncMobileMapMeta(){
   const src=document.querySelector('.map-legend-inline');
   const dst=document.getElementById('mobileMapLegend');
@@ -41,7 +48,7 @@ function syncMobileUser(){
   const src=candidates.find(Boolean);
   if(src && src.textContent.trim()) out.textContent=src.textContent.trim();
 }
-(function initV276Sync(){
+(function initResponsiveSync(){
   const boot=()=>{syncMobileMapMeta();syncMobileUser();};
   document.addEventListener('DOMContentLoaded',boot);
   window.addEventListener('load',boot);

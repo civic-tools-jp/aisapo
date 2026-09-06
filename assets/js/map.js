@@ -28,54 +28,76 @@ async function reverseAddress(lat,lng){
     return normalizeJapaneseAddress(await r.json());
   }catch(_){return ''}
 }
-async function fillAddressFromCurrentLocation(){
-  if(!navigator.geolocation){alert('この端末では現在地を取得できません');return}
-  navigator.geolocation.getCurrentPosition(async p=>{
-    const lat=p.coords.latitude,lng=p.coords.longitude;
-    $('lat').value=lat;$('lng').value=lng;
-    const address=await reverseAddress(lat,lng);
-    if(address)$('fullAddress').value=address;
-    if(map)map.setView([lat,lng],18);
-  },()=>alert('現在地を取得できませんでした'),{enableHighAccuracy:true,timeout:12000});
-}
 
-async function geocodeRecordAddress(){
-  const address=String($('fullAddress')?.value||'').trim();
-  if(!address){alert('住所を入力してください');return}
+function geoErrorMessage(err){
+  if(!window.isSecureContext)return '現在地取得にはHTTPS接続が必要です。';
+  const code=Number(err?.code||0);
+  if(code===1)return '位置情報の利用が許可されていません。ブラウザのサイト設定で「あいサポ」の位置情報を許可してください。';
+  if(code===2)return '現在地を取得できませんでした。端末の位置情報をONにして、Wi-Fiやモバイル通信を確認してください。';
+  if(code===3)return '現在地の取得がタイムアウトしました。少し待ってからもう一度お試しください。';
+  return '現在地を取得できませんでした。';
+}
+function currentPositionOnce(options){
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation){reject({code:0,message:'geolocation unavailable'});return}
+    navigator.geolocation.getCurrentPosition(resolve,reject,options);
+  });
+}
+async function getCurrentPositionSmart(){
+  if(!navigator.geolocation)throw {code:0,message:'geolocation unavailable'};
   try{
-    const res=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=ja&q=${encodeURIComponent(address)}`);
-    const data=await res.json();
-    if(!data[0]){alert('住所から位置を取得できませんでした');return}
-    const lat=Number(data[0].lat),lng=Number(data[0].lon);
-    $('lat').value=lat;$('lng').value=lng;
-    if(map)map.setView([lat,lng],17);
-    alert('位置を取得しました。保存してください。');
-  }catch(_){
-    alert('位置取得に失敗しました');
+    return await currentPositionOnce({enableHighAccuracy:true,timeout:20000,maximumAge:15000});
+  }catch(first){
+    // GPSが弱い室内などでは、Wi-Fi/基地局を使える低精度取得へ自動フォールバック。
+    if(Number(first?.code)===1)throw first;
+    try{
+      return await currentPositionOnce({enableHighAccuracy:false,timeout:15000,maximumAge:60000});
+    }catch(second){
+      throw second||first;
+    }
   }
 }
 
-function openRecordGoogleMaps(){
-  const lat=Number($('lat')?.value),lng=Number($('lng')?.value);
-  const address=String($('fullAddress')?.value||'').trim();
-  let q='';
-  if(Number.isFinite(lat)&&Number.isFinite(lng)&&lat&&lng)q=`${lat},${lng}`;
-  else if(address)q=address;
-  else {alert('住所または現在地を入力してください');return}
-  window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,'_blank','noopener');
+function initMap(){if(map)return;map=L.map('map').setView([33.5902,130.4017],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);map.on('click',async e=>{const address=await reverseAddress(e.latlng.lat,e.latlng.lng);openEdit({id:'',lat:e.latlng.lat,lng:e.latlng.lng,fullAddress:address,status:'unvisited',type:'戸建て',date:today(),source:'map',memberType:'general'},true)});setTimeout(()=>map.invalidateSize(),100)}
+function priorityBadge(memberType){return memberType==='party_member'?'★':memberType==='supporter'?'♥':''}
+function recordMemberType(r){return r.memberType||'general'}
+
+function markerSvg(key){
+  const common='viewBox="0 0 24 24" aria-hidden="true"';
+  const icons={
+    unvisited:`<svg ${common}><path d="M4.7 10.2 12 4.6l7.3 5.6v8.1a1.7 1.7 0 0 1-1.7 1.7H6.4a1.7 1.7 0 0 1-1.7-1.7v-8.1Z" fill="currentColor"/><path d="M9.1 20v-5.7h5.8V20" fill="var(--pin-color)"/></svg>`,
+    visited:`<svg ${common}><path d="m6.2 12.5 3.4 3.4 8.2-8.4" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+    good:`<svg ${common}><path d="M12 20.2S4.4 15.7 4.4 9.6c0-2.7 1.9-4.6 4.4-4.6 1.6 0 2.7.8 3.2 1.8.6-1 1.7-1.8 3.3-1.8 2.5 0 4.3 1.9 4.3 4.6 0 6.1-7.6 10.6-7.6 10.6Z" fill="currentColor"/></svg>`,
+    absent:`<svg ${common}><rect x="7" y="5" width="10" height="15" rx="1.2" fill="currentColor"/><circle cx="14.4" cy="12.6" r="1" fill="var(--pin-color)"/><path d="M5 7.5 19 19" stroke="var(--pin-color)" stroke-width="2.6" stroke-linecap="round"/></svg>`,
+    revisit:`<svg ${common}><path d="M12 4.3a7.7 7.7 0 1 1-7.2 10.4" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/><path d="m3.7 8.2 1.1 6.5 5.4-3.6" fill="currentColor"/></svg>`,
+    refused:`<svg ${common}><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>`
+  };
+  return icons[key]||icons.unvisited;
 }
 
-function initMap(){if(map)return;map=L.map('map').setView([33.5902,130.4017],12);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);map.on('click',async e=>{const address=await reverseAddress(e.latlng.lat,e.latlng.lng);openEdit({id:'',lat:e.latlng.lat,lng:e.latlng.lng,fullAddress:address,status:'unvisited',type:'戸建て',date:today(),source:'map',memberType:'general'},true)});setTimeout(()=>map.invalidateSize(),100)}
-function priorityBadge(memberType){return memberType==='party_member'?'⭐':memberType==='supporter'?'🟠':''}
-function recordMemberType(r){return r.memberType||'general'}
-function icon(r){
-  const key=statusKey(r.status),c=STATUS[key].color,b=priorityBadge(recordMemberType(r));
-  const w=boolValue(r.warning)?'⚠️':'',x=key==='refused'?'×':'';
-  const f=typeof hasFollow==='function'&&hasFollow(r)?'🤝':'';
-  const p=boolValue(r.posterRequest)?'🍊':'';
-  return L.divIcon({className:'',html:`<div class="pin-wrap"><div class="pin" style="background:${c}"></div>${b?`<div class="pin-priority">${b}</div>`:''}${w?`<div class="pin-warning">${w}</div>`:''}${x?`<div class="pin-refused">${x}</div>`:''}${f?`<div class="pin-follow">${f}</div>`:''}${p?`<div class="pin-poster">${p}</div>`:''}</div>`,iconSize:[40,40],iconAnchor:[11,22]})
+function markerExtraBadge(r){
+  if(boolValue(r.warning))return '<span class="pin-extra pin-extra-warning" title="訪問注意">!</span>';
+  const mt=recordMemberType(r);
+  if(mt==='party_member')return '<span class="pin-extra pin-extra-party" title="党員">★</span>';
+  if(mt==='supporter')return '<span class="pin-extra pin-extra-supporter" title="サポーター">♥</span>';
+  return '';
 }
-function contactIcon(c){const b=priorityBadge(c.memberType);return L.divIcon({className:'',html:`<div class="contact-pin ${c.memberType==='party_member'?'member':'support'}">${b||'○'}</div>`,iconSize:[30,30],iconAnchor:[15,15]})}
+
+function icon(r){
+  const key=statusKey(r.status),c=STATUS[key].color;
+  return L.divIcon({
+    className:'aisapo-leaflet-marker',
+    html:`<div class="cute-pin-wrap">
+      <div class="cute-pin pin-${key}" style="--pin-color:${c}">
+        <span class="cute-pin-icon">${markerSvg(key)}</span>
+      </div>
+      ${markerExtraBadge(r)}
+    </div>`,
+    iconSize:[48,56],
+    iconAnchor:[24,53],
+    tooltipAnchor:[0,-43]
+  })
+}
 function renderMarkers(){
   if(!map)return;
   Object.values(markers).forEach(m=>map.removeLayer(m));
@@ -83,8 +105,20 @@ function renderMarkers(){
   const pts=[];
   let matched=0,shown=0;
 
+  const followOnly=!!$('mapFollow')?.checked;
+  const followPendingOnly=!!$('mapFollowPending')?.checked;
+  const posterOnly=!!$('mapPosterRequest')?.checked;
+  const priorityFilters=[];
+  if($('mapPriorityHigh')?.checked)priorityFilters.push('◎高');
+  if($('mapPriorityMedium')?.checked)priorityFilters.push('○中');
+  if($('mapPriorityLow')?.checked)priorityFilters.push('△低');
+
   records.forEach(r=>{
     if(currentAreaId && String(r.areaId||'')!==String(currentAreaId))return;
+    if(followOnly && !hasFollow(r))return;
+    if(followPendingOnly && (!hasFollow(r)||boolValue(r.followDone)))return;
+    if(posterOnly && !boolValue(r.posterRequest))return;
+    if(priorityFilters.length && !priorityFilters.includes(String(r.revisitPriority||'')))return;
     matched++;
 
     const mt=recordMemberType(r),key=statusKey(r.status);
@@ -95,10 +129,11 @@ function renderMarkers(){
     const marker=L.marker([lat,lng],{icon:icon(r)}).addTo(map).on('click',()=>openEdit(r,false));
     const extras=[
       priorityBadge(mt),
-      r.personName||r.fullAddress||'訪問先',
+      (typeof recordDisplayName==='function'?recordDisplayName(r):(r.personName||''))||r.fullAddress||'訪問先',
       key==='refused'?'×断られた':'',
       boolValue(r.warning)?'⚠️訪問注意':'',
-      boolValue(r.posterRequest)?'🍊ポスター依頼':''
+      boolValue(r.posterRequest)?'🍊ポスター依頼':'',
+      Number(r.visitCount||0)>0?`訪問${Number(r.visitCount)}回`:''
     ].filter(Boolean).join(' ');
     marker.bindTooltip(extras);
     markers['r_'+r.id]=marker;
@@ -146,4 +181,14 @@ async function searchMap(){
   if(local){map.setView([Number(local.lat),Number(local.lng)],17);markers['r_'+local.id]?.openTooltip();return}
   try{const res=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=ja&q=${encodeURIComponent(q)}`);const j=await res.json();if(j[0])map.setView([+j[0].lat,+j[0].lon],17);else alert('見つかりませんでした')}catch(_){alert('検索に失敗しました')}
 }
-function addCurrentLocation(){navigator.geolocation.getCurrentPosition(async p=>{const lat=p.coords.latitude,lng=p.coords.longitude;map.setView([lat,lng],18);const address=await reverseAddress(lat,lng);openEdit({lat,lng,fullAddress:address,status:'visited',type:'戸建て',date:today(),source:'map',memberType:'general'},true)},()=>alert('現在地を取得できませんでした'),{enableHighAccuracy:true,timeout:12000})}
+async function addCurrentLocation(){
+  try{
+    const p=await getCurrentPositionSmart();
+    const lat=p.coords.latitude,lng=p.coords.longitude;
+    map.setView([lat,lng],18);
+    const address=await reverseAddress(lat,lng);
+    openEdit({lat,lng,fullAddress:address,status:'visited',type:'戸建て',date:today(),source:'map',memberType:'general'},true);
+  }catch(err){
+    alert(geoErrorMessage(err));
+  }
+}

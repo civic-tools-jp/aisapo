@@ -1,9 +1,18 @@
 function boolValue(v){return v===true||v===1||String(v||"").toLowerCase()==="true"}
 "use strict";
-async function loadRecords(){try{setBusy(true);const d=await api('listRecords',{areaId:currentAreaId});records=d.records||[];renderAll();}catch(e){if(/セッション/.test(e.message)){logout();return}msg('appMsg',e.message)}finally{setBusy(false)}}
+async function loadRecords(){try{setBusy(true);const d=await api('listRecords',{areaId:currentAreaId});records=d.records||[];await loadActivitySummary();renderAll();}catch(e){if(/セッション/.test(e.message)){logout();return}msg('appMsg',e.message)}finally{setBusy(false)}}
 function setBusy(v){$('app').classList.toggle('spinner',v)}
-function isRevisit(r){return statusKey(r.status)==='revisit'||['○中','◎高'].includes(r.revisitPriority)}
-function renderStatus(){$('statusGrid').innerHTML=Object.entries(STATUS).map(([k,v])=>`<button type="button" class="status-btn ${editStatus===k?'active':''}" onclick="editStatus='${k}';renderStatus()">${v.label}</button>`).join('');if($('detailHeaderStatus'))$('detailHeaderStatus').textContent=(STATUS[editStatus]||STATUS.unvisited).label}
+async function loadActivitySummary(){try{const d=await api('activitySummary',{areaId:currentAreaId});activitySummary=d||null;}catch(e){console.warn('activity summary',e);activitySummary=null;}}
+function isRevisit(r){return statusKey(r.status)==='revisit'}
+function renderDetailQuickSummary(r){
+  const box=$('detailQuickSummary');if(!box)return;
+  const st=STATUS[statusKey(r?.status)]||STATUS.unvisited;
+  const next=r?.nextVisitDate?formatVisitDate(r.nextVisitDate):'未設定';
+  const rank=typeof supportRankLabel==='function'?supportRankLabel(r?.supporter):'';
+  const last=r?.date?formatVisitDate(r.date):'未訪問';
+  box.innerHTML=`<div><span>現在</span><b>${esc(st.label)}</b></div><div><span>最終訪問</span><b>${esc(last)}</b></div><div><span>次回予定</span><b>${esc(next)}</b></div><div><span>支持</span><b>${esc(rank||'未判定')}</b></div>${boolValue(r?.urgent)?'<div class="quick-alert"><span>対応</span><b>⚡ 急ぎ</b></div>':''}${boolValue(r?.warning)?'<div class="quick-alert"><span>注意</span><b>⚠ あり</b></div>':''}`;
+}
+function renderStatus(){const grid=$('statusGrid');if(grid)grid.innerHTML='';const st=STATUS[editStatus]||STATUS.unvisited;if($('detailHeaderStatus'))$('detailHeaderStatus').innerHTML=`<span class="status-icon">${st.icon||''}</span>${st.label}`;const summary=$('visitSummary');if(summary){const count=Number(editing?.visitCount||editing?.roundNo||0)||0;const next=editing?.nextVisitDate?formatVisitDate(editing.nextVisitDate):'';summary.innerHTML=`<div class="visit-summary-main"><strong>${st.icon||''} ${esc(st.label)}</strong>${count?`<span>${count}回訪問</span>`:'<span>訪問履歴なし</span>'}</div>${next?`<div class="visit-summary-next">次回予定：${esc(next)}</div>`:''}`;}renderDetailQuickSummary(editing||{});}
 function inputDateValue(v){
   if(!v)return today();
   if(v instanceof Date&&!isNaN(v))return v.toISOString().slice(0,10);
@@ -13,25 +22,59 @@ function inputDateValue(v){
   const d=new Date(s);
   return isNaN(d)?today():d.toISOString().slice(0,10);
 }
+const VISIT_RESULT_LABELS={talked:'本人と話せた',family:'家族・同居人と話せた',absent:'不在',intercom:'インターフォンのみ',refused:'断られた',other:'その他'};
+function toggleVisitResultFields(){const on=!!$('visitResult')?.value;$('visitResultFields')?.classList.toggle('hidden',!on);}
+function nextRoundForRecord(r){const n=Number(r?.roundNo||r?.visitCount||0)||0;return Math.min(n+1,4);}
+function formatVisitDate(v){if(!v)return'';return String(v).slice(0,10).replace(/-/g,'/');}
+async function loadVisitHistory(recordId,record){
+  const wrap=$('visitHistoryWrap'),list=$('visitHistoryList');if(!wrap||!list)return;
+  wrap.classList.remove('hidden');
+  if(!recordId){list.innerHTML='<div class="visit-history-empty">まだ訪問履歴はありません。</div>';if($('visitRound'))$('visitRound').value='1';return;}
+  try{
+    const d=await api('listVisitHistory',{recordId});let visits=d.visits||[];
+    // Ver.2.8.51以前の「最新訪問」しか持っていないデータも、画面上では履歴として確認できるようにする。
+    if(visits.length===0 && record && record.date && statusKey(record.status)!=='unvisited'){
+      const reverseResult={visited:'talked',absent:'absent',revisit:'intercom',refused:'refused'};
+      visits=[{roundNo:Number(record.roundNo||record.visitCount||1)||1,visitedAt:record.date,result:reverseResult[statusKey(record.status)]||'other',posted:false,nextVisitDate:record.nextVisitDate||'',memo:record.memo||'',legacy:true}];
+    }
+    if(visits.length===0){
+      list.innerHTML='<div class="visit-history-empty">まだ訪問履歴はありません。</div>';
+      if($('visitRound'))$('visitRound').value='1';
+    }else{
+      visits=[...visits].sort((a,b)=>String(b.visitedAt||'').localeCompare(String(a.visitedAt||''))||Number(b.roundNo||0)-Number(a.roundNo||0));
+      list.innerHTML=visits.map(v=>`<div class="visit-history-item"><div class="visit-history-head"><strong>${esc(v.roundNo?`${v.roundNo}巡目`:'訪問')}</strong><span>${esc(formatVisitDate(v.visitedAt))}</span></div><div class="visit-history-result">${esc(VISIT_RESULT_LABELS[v.result]||v.result||'')}</div>${boolValue(v.posted)?'<div class="visit-history-posted">📮 ポスティング</div>':''}${v.nextVisitDate?`<div class="visit-history-next">次回：${esc(formatVisitDate(v.nextVisitDate))}</div>`:''}${v.memo?`<div class="visit-history-memo">${esc(v.memo)}</div>`:''}${v.legacy?'<div class="visit-history-legacy">旧データから表示</div>':''}</div>`).join('');
+      const maxRound=Math.max(...visits.map(v=>Number(v.roundNo||0)||0),0);
+      if($('visitRound'))$('visitRound').value=String(Math.min(maxRound+1,4));
+    }
+  }catch(e){console.warn('visit history',e);list.innerHTML='<div class="visit-history-empty">訪問履歴を読み込めませんでした。</div>';}
+}
 function isPartyOrSupporter(c){
   const mt=String(c.memberType||'').trim();
   if(mt==='party_member'||mt==='supporter')return true;
   const raw=String(c.memberTypeRaw||c.membershipType||c.memberCategory||c.partyMemberType||'').trim();
   return /党員|会員|サポーター/.test(raw);
 }
-function openEdit(r,isNew){editing={...r,isNew};$('recordId').value=r.id||'';$('recordMemberType').value=r.memberType||'general';$('recordSource').value=r.source||(isNew?'manual':'');$('lat').value=r.lat||'';$('lng').value=r.lng||'';$('fullAddress').value=r.fullAddress||'';$('personName').value=r.personName||'';$('recordPhone').value=r.phone||'';$('recordEmail').value=r.email||'';$('supporter').value=r.supporter||'';$('priority').value=r.revisitPriority||'';$('referrer').value=r.referrer||'';$('followParty').checked=boolValue(r.followParty);$('followSupporter').checked=boolValue(r.followSupporter);$('followDetails').checked=boolValue(r.followDetails);$('followDone').checked=boolValue(r.followDone);$('followMemo').value=r.followMemo||'';toggleFollowFields();$('warning').checked=boolValue(r.warning);$('warningReason').value=r.warningReason||'';$('warningMemo').value=r.warningMemo||'';toggleWarningFields();$('posterRequest').checked=boolValue(r.posterRequest);$('posterReported').checked=boolValue(r.posterReported);$('posterRequestMemo').value=r.posterRequestMemo||'';togglePosterRequestFields();$('type').value=r.type||'戸建て';$('date').value=inputDateValue(r.date);$('memo').value=r.memo||'';editStatus=statusKey(r.status);renderStatus();updateDetailHeader(r);const imported=String(r.source||'')==='import';
-  const canRemove=!!r.id&&(!imported||['leader','prefecture_admin','system_admin'].includes(session?.role));
+function openEdit(r,isNew){editing={...r,isNew};$('recordId').value=r.id||'';$('recordMemberType').value=r.memberType||'general';$('recordSource').value=r.source||(isNew?'manual':'');$('lat').value=r.lat||'';$('lng').value=r.lng||'';$('fullAddress').value=r.fullAddress||'';$('personName').value=(typeof recordDisplayName==='function'?recordDisplayName(r):(r.personName||''));$('recordPhone').value=r.phone||'';$('recordEmail').value=r.email||'';$('supporter').value=(typeof supportRankValue==='function'?supportRankValue(r.supporter):(r.supporter||''));if($('urgent'))$('urgent').checked=boolValue(r.urgent);$('referrer').value=r.referrer||'';$('followParty').checked=boolValue(r.followParty);$('followSupporter').checked=boolValue(r.followSupporter);$('followDetails').checked=boolValue(r.followDetails);$('followDone').checked=boolValue(r.followDone);$('followMemo').value=r.followMemo||'';toggleFollowFields();$('warning').checked=boolValue(r.warning);$('warningReason').value=r.warningReason||'';$('warningMemo').value=r.warningMemo||'';toggleWarningFields();$('posterRequest').checked=boolValue(r.posterRequest);$('posterReported').checked=boolValue(r.posterReported);$('posterRequestMemo').value=r.posterRequestMemo||'';togglePosterRequestFields();$('type').value=r.type||'戸建て';$('date').value=today();$('memo').value='';if($('visitRound'))$('visitRound').value=String(nextRoundForRecord(r));if($('visitResult'))$('visitResult').value='';if($('visitPosted'))$('visitPosted').checked=false;if($('nextVisitDate'))$('nextVisitDate').value=r.nextVisitDate?inputDateValue(r.nextVisitDate):'';toggleVisitResultFields();editStatus=statusKey(r.status);renderStatus();updateDetailHeader({...r,isNew});const imported=String(r.source||'')==='import';
+  const importedPrivacy=imported;
+  $('recordAddressBlock')?.classList.toggle('hidden',importedPrivacy);
+  $('recordImportedLocationBlock')?.classList.toggle('hidden',!importedPrivacy);
+  $('recordContactFields')?.classList.toggle('hidden',importedPrivacy);
+  if(importedPrivacy){$('fullAddress').value='';$('recordPhone').value='';$('recordEmail').value='';setTimeout(()=>initRecordLocationMap(r),60);}
+  const canRemove=!!r.id&&(!imported||['leader','prefecture_admin','system_admin'].includes(window.appSession?.role));
   $('deleteRecordRow')?.classList.toggle('hidden',!canRemove);
+  $('mobileDetailDeleteBtn')?.classList.toggle('hidden',!canRemove);
   const deleteBtn=document.querySelector('#deleteRecordRow button');
   if(deleteBtn){
     deleteBtn.textContent=imported?'この名簿データを無効化':'この訪問先を削除';
     deleteBtn.title=imported?'元データは削除せず、通常表示から外します':'';
   }
-  const protectedMember=session?.role==='member'&&!isNew&&['party_member','supporter'].includes(String(r.memberType||''));
+  const mobileCancelBtn=$('mobileDetailCancelBtn');
+  if(mobileCancelBtn)mobileCancelBtn.textContent=isNew?'キャンセル':'閉じる';
+  const protectedMember=window.appSession?.role==='member'&&!isNew&&['party_member','supporter'].includes(String(r.memberType||''));
   const importedMember=protectedMember&&String(r.source||'')==='import';
   const locationConfirmed=protectedMember&&r.locationConfirmed===true;
 
-  $('personName').readOnly=importedMember;
+  $('personName').readOnly=importedPrivacy||importedMember;
   $('recordPhone').readOnly=protectedMember;
   $('recordMemberType').disabled=protectedMember;
   $('fullAddress').readOnly=locationConfirmed;
@@ -49,6 +92,7 @@ function openEdit(r,isNew){editing={...r,isNew};$('recordId').value=r.id||'';$('
   }
 
   const hasCoords=!!(Number(r.lat)&&Number(r.lng));
+  $('openGoogleMapsBtn')?.classList.toggle('hidden',!hasCoords);
   const source=String(r.source||(isNew?'manual':'manual'));
   const geocodeBtn=$('recordGeocodeBtn'),currentBtn=$('recordCurrentBtn'),mapCheckBtn=$('recordMapCheckBtn');
 
@@ -62,23 +106,11 @@ function openEdit(r,isNew){editing={...r,isNew};$('recordId').value=r.id||'';$('
 
   const locationNote=document.getElementById('recordLocationNote');
   if(locationNote){
-    locationNote.textContent=protectedMember
-      ? (locationConfirmed?'🔒 位置確認済み：住所は閲覧のみです':'⚠️ 位置未確認：住所を修正して位置を再取得できます')
-      : '';
-    locationNote.classList.toggle('hidden',!protectedMember);
+    locationNote.textContent=importedPrivacy?'🔐 名簿由来データは住所を保存せず、地図上の位置情報だけで管理します。':(protectedMember?(locationConfirmed?'🔒 位置確認済み':'⚠️ 位置未確認'):'');
+    locationNote.classList.toggle('hidden',!(importedPrivacy||protectedMember));
   }
 
-  $('editModal').style.display='flex'}
-function toggleRecordContactLink(){
-  const checked=!!$('linkContactCheck')?.checked;
-  $('recordContactWrap')?.classList.toggle('hidden',!checked);
-  if(checked)renderContactSelect();
-  if(!checked){
-    if($('recordContactSearch'))$('recordContactSearch').value='';
-    if($('recordContact'))$('recordContact').value='';
-    renderLinkedContactInfo('');
-  }
-}
+  const editModal=$('editModal');editModal.style.display='flex';loadVisitHistory(r.id||'',r);requestAnimationFrame(()=>{editModal.scrollTop=0;const detail=editModal.querySelector('.detail-modal');if(detail)detail.scrollTop=0;window.scrollTo({top:0,left:0,behavior:'auto'});});}
 function renderLinkedContactInfo(contactId){
   const c=contacts.find(x=>String(x.contactId)===String(contactId||''));
   const box=$('linkedContactInfo');
@@ -113,29 +145,33 @@ function renderContactSelect(preferred){
 }
 
 function hasFollow(r){return boolValue(r.followParty)||boolValue(r.followSupporter)||boolValue(r.followDetails)}
-function followLabel(r){
-  const a=[];
-  if(boolValue(r.followParty))a.push('⭐ 党員希望');
-  if(boolValue(r.followSupporter))a.push('🟠 サポーター希望');
-  if(boolValue(r.followDetails))a.push('💬 詳細希望');
-  return a.join(' / ');
-}
 function toggleFollowFields(){
   const on=$('followParty')?.checked||$('followSupporter')?.checked||$('followDetails')?.checked;
   $('followFields')?.classList.toggle('hidden',!on);
   if(!on&&$('followDone'))$('followDone').checked=false;
 }
 function updateDetailHeader(r){
-  const name=r.personName||r.fullAddress||'訪問先';
+  const vc=Number(r?.visitCount||0); if($('detailVisitCount')){$('detailVisitCount').textContent=`訪問 ${vc}回`;$('detailVisitCount').classList.toggle('hidden',vc<=0);}
+  const displayName=(typeof recordDisplayName==='function'?recordDisplayName(r):(r.personName||''));
+  const isNew=!!(r?.isNew||editing?.isNew);
+  const name=displayName||(isNew?'新しい訪問先':'名前未登録');
   if($('detailHeaderName'))$('detailHeaderName').textContent=name;
-  if($('detailHeaderAddress'))$('detailHeaderAddress').textContent=r.fullAddress||'住所未設定';
+  if($('detailHeaderAddress'))$('detailHeaderAddress').textContent=String(r.source||'')==='import'?`${r.partyId?'党員ID '+r.partyId+' ／ ':''}位置情報で管理`:(r.fullAddress||'住所未設定');
   if($('detailHeaderStatus')){
     const st=STATUS[statusKey(r.status)]||STATUS.unvisited;
-    $('detailHeaderStatus').textContent=st.label;
+    $('detailHeaderStatus').innerHTML=`<span class="status-icon">${st.icon||''}</span>${st.label}`;
   }
+  renderDetailQuickSummary(r);
 }
 
-function closeEdit(){$('editModal').style.display='none';editing=null}
+
+function openRecordInGoogleMaps(){
+  const lat=Number($('lat')?.value||editing?.lat||0),lng=Number($('lng')?.value||editing?.lng||0);
+  if(!(Number.isFinite(lat)&&Number.isFinite(lng)&&lat&&lng)){return}
+  window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lat},${lng}`)}`,'_blank','noopener');
+}
+
+function closeEdit(){$('editModal').style.display='none';recordLocationEditing=false;editing=null}
 async function geocodeAddressQuietly(address){
   const q=String(address||'').trim();
   if(!q)return null;
@@ -150,24 +186,35 @@ async function geocodeAddressQuietly(address){
 }
 
 async function saveRecord(){
-  const btn=document.getElementById('saveRecordBtn');
+  const btn=document.getElementById('saveRecordBtn'),mobileBtn=document.getElementById('mobileSaveRecordBtn');
   try{
-    if(btn){btn.disabled=true;btn.textContent='保存中…'}
+    [btn,mobileBtn].filter(Boolean).forEach(b=>{b.disabled=true;b.textContent='保存中…'});
 
-    const fullAddress=$('fullAddress').value.trim();
+    const importedPrivacy=String($('recordSource').value||'')==='import'&&['party_member','supporter'].includes(String($('recordMemberType').value||''));
+    const fullAddress=importedPrivacy?'':$('fullAddress').value.trim();
     let lat=Number($('lat').value),lng=Number($('lng').value);
     const hasCoords=Number.isFinite(lat)&&Number.isFinite(lng)&&lat&&lng;
     const addressChanged=String(editing?.fullAddress||'').trim()!==fullAddress;
-    const shouldGeocode=fullAddress && (!hasCoords || (addressChanged && String($('recordSource').value||'manual')!=='map'));
+    const shouldGeocode=!importedPrivacy&&fullAddress && (!hasCoords || (addressChanged && String($('recordSource').value||'manual')!=='map'));
 
     if(shouldGeocode){
-      if(btn)btn.textContent='位置確認中…';
+      [btn,mobileBtn].filter(Boolean).forEach(b=>b.textContent='位置確認中…');
       const pos=await geocodeAddressQuietly(fullAddress);
       if(pos){
         lat=pos.lat;lng=pos.lng;
         $('lat').value=lat;$('lng').value=lng;
       }
     }
+
+    const statusNow=editStatus;
+    const hasFollowNow=$('followParty').checked||$('followSupporter').checked||$('followDetails').checked;
+    const posterNow=$('posterRequest').checked;
+    const dateNow=$('date').value;
+    const visitResult=$('visitResult')?.value||'';
+    const cautions=[];
+    if(statusNow==='refused' && hasFollowNow) cautions.push('「断られた」状態ですが、フォロー対象が設定されています。');
+    if(statusNow==='refused' && posterNow) cautions.push('「断られた」状態ですが、ポスター依頼が設定されています。');
+    if(cautions.length && !confirm(cautions.join('\n')+'\n\nこの内容で保存しますか？')) return;
 
     const rec={
       id:$('recordId').value,
@@ -179,11 +226,12 @@ async function saveRecord(){
       lng:Number.isFinite(lng)?lng:0,
       fullAddress,
       personName:$('personName').value.trim(),
-      phone:$('recordPhone').value.trim(),
-      email:$('recordEmail').value.trim(),
+      phone:importedPrivacy?'':$('recordPhone').value.trim(),
+      email:importedPrivacy?'':$('recordEmail').value.trim(),
       status:editStatus,
       supporter:$('supporter').value,
-      revisitPriority:$('priority').value,
+      revisitPriority:editing?.revisitPriority||'',
+      urgent:!!$('urgent')?.checked,
       referrer:$('referrer').value.trim(),
       followParty:$('followParty').checked,
       followSupporter:$('followSupporter').checked,
@@ -197,24 +245,37 @@ async function saveRecord(){
       posterReported:$('posterReported').checked,
       posterRequestMemo:$('posterRequestMemo').value.trim(),
       type:$('type').value,
-      date:$('date').value,
-      memo:$('memo').value.trim(),
+      date:visitResult?($('date').value||today()):(editing?.date||''),
+      memo:visitResult?$('memo').value.trim():(editing?.memo||''),
+      nextVisitDate:$('nextVisitDate')?.value||'',
       updatedAt:editing?.updatedAt||''
     };
-    await api('saveRecord',{record:rec});
+    if(visitResult){
+      const mappedStatus={talked:'visited',family:'visited',absent:'absent',intercom:'revisit',refused:'refused',other:editStatus};
+      rec.status=mappedStatus[visitResult]||editStatus;
+    }
+    const visitEntry=visitResult?{
+      roundNo:Number($('visitRound')?.value||nextRoundForRecord(editing)),
+      visitedAt:$('date').value||today(),
+      result:visitResult,
+      posted:!!$('visitPosted')?.checked,
+      nextVisitDate:$('nextVisitDate')?.value||'',
+      memo:$('memo').value.trim()
+    }:null;
+    await api('saveRecord',{record:rec,visitEntry});
     closeEdit();
     await loadRecords();
   }catch(e){
     console.error(e);
     alert(e.message||String(e));
   }finally{
-    if(btn){btn.disabled=false;btn.textContent='保存'}
+    [btn,mobileBtn].filter(Boolean).forEach(b=>{b.disabled=false;b.textContent='保存'});
   }
 }
 async function deleteRecord(){
   if(!editing?.id){closeEdit();return}
   const imported=String(editing.source||'')==='import';
-  if(imported&&!['leader','prefecture_admin','system_admin'].includes(session?.role)){alert('名簿から取り込んだデータは削除できません');return}
+  if(imported&&!['leader','prefecture_admin','system_admin'].includes(window.appSession?.role)){alert('名簿から取り込んだデータは削除できません');return}
   const text=imported?'この名簿データを無効化しますか？\n\n元データは削除せず、一覧・地図・分析から非表示にします。':'この訪問先を削除しますか？';
   if(!confirm(text))return;
   try{
@@ -226,6 +287,30 @@ async function deleteRecord(){
 
 function toggleWarningFields(){const on=!!$('warning')?.checked;$('warningFields')?.classList.toggle('hidden',!on)}
 
-function newUnifiedRecord(){openEdit({id:'',lat:'',lng:'',fullAddress:'',personName:'',status:'unvisited',type:'戸建て',date:today(),source:'manual',memberType:'general'},true)}
-
 function togglePosterRequestFields(){const on=!!$('posterRequest')?.checked;$('posterRequestFields')?.classList.toggle('hidden',!on);if(!on&&$('posterReported'))$('posterReported').checked=false}
+
+
+function syncDetailHeaderFromForm(){
+  if(!$('editModal') || $('editModal').style.display==='none')return;
+  updateDetailHeader({
+    ...(editing||{}),
+    isNew:!!editing?.isNew,
+    personName:$('personName')?.value||'',
+    fullAddress:$('fullAddress')?.value||'',
+    status:editStatus,
+    visitCount:editing?.visitCount||0
+  });
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  $('personName')?.addEventListener('input',syncDetailHeaderFromForm);
+  $('fullAddress')?.addEventListener('input',syncDetailHeaderFromForm);
+});
+
+function initRecordLocationMap(r){
+  const el=$('recordLocationMap');if(!el)return;const lat=Number(r.lat),lng=Number(r.lng);const area=areas.find(a=>String(a.areaId)===String(r.areaId||currentAreaId));const center=(lat&&lng)?[lat,lng]:(area&&Number(area.mapLat)&&Number(area.mapLng)?[Number(area.mapLat),Number(area.mapLng)]:[33.5902,130.4017]);
+  if(!recordLocationMap){recordLocationMap=L.map('recordLocationMap').setView(center,(lat&&lng)?18:13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(recordLocationMap);recordLocationMap.on('click',e=>{if(!recordLocationEditing)return;setRecordLocationMarker(e.latlng.lat,e.latlng.lng,true)});}else recordLocationMap.setView(center,(lat&&lng)?18:13);
+  setTimeout(()=>recordLocationMap.invalidateSize(),30);if(lat&&lng)setRecordLocationMarker(lat,lng,false);else if(recordLocationMarker){recordLocationMarker.remove();recordLocationMarker=null;}
+  recordLocationEditing=false;const btn=$('recordLocationEditBtn');const canEdit=['leader','prefecture_admin','system_admin'].includes(window.appSession?.role);if(btn){btn.classList.toggle('hidden',!canEdit);btn.textContent='位置を修正';}
+}
+function setRecordLocationMarker(lat,lng,fromEdit){if(recordLocationMarker)recordLocationMarker.remove();recordLocationMarker=L.marker([lat,lng],{draggable:!!recordLocationEditing}).addTo(recordLocationMap);if(recordLocationEditing)recordLocationMarker.on('dragend',e=>{const p=e.target.getLatLng();$('lat').value=p.lat;$('lng').value=p.lng;});$('lat').value=lat;$('lng').value=lng;if(fromEdit)recordLocationMap.setView([lat,lng],18);}
+function toggleRecordLocationEdit(){if(!['leader','prefecture_admin','system_admin'].includes(window.appSession?.role))return;recordLocationEditing=!recordLocationEditing;const btn=$('recordLocationEditBtn');if(btn)btn.textContent=recordLocationEditing?'地図をタップ／ピンを移動':'位置を修正';if(recordLocationMarker){const p=recordLocationMarker.getLatLng();setRecordLocationMarker(p.lat,p.lng,false);}}

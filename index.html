@@ -3,33 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>あいサポ Ver.2.8.8</title>
+<title>あいサポ Ver.2.8.63</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="assets/css/styles.css?v=2.8.8">
+<link rel="stylesheet" href="assets/css/styles.css?v=2.8.63">
 </head>
 <body>
 <div id="loginView" class="login-shell">
   <div class="login-card">
     <div class="brand-lockup login-brand brand-image-lockup">
-      <img src="assets/img/aisapo-logo.png?v=2.8.8" alt="あいサポ 会いに行く。つながる。地域をサポート。" class="aisapo-logo-image">
+      <img src="assets/img/aisapo-logo.png?v=2.8.63" alt="あいサポ 会いに行く。つながる。地域をサポート。" class="aisapo-logo-image">
     </div>
     <div class="login-title">ログイン</div>
     <div id="loginMsg"></div>
     <label class="label">ユーザーID</label><input id="loginId" autocomplete="username">
-    <label class="label">パスワード</label><input id="loginPassword" type="password" autocomplete="current-password">
+    <label class="label">パスワード</label><div class="password-field"><input id="loginPassword" type="password" autocomplete="current-password"><button type="button" id="loginPasswordToggle" class="password-toggle simple-eye-toggle" onclick="toggleLoginPassword()" aria-label="パスワードを表示" title="パスワードを表示"><svg class="password-eye-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3 3.7M6.2 6.2C3.5 8 2 12 2 12s3.5 6 10 6c1.8 0 3.3-.5 4.6-1.2"/><path d="M9.9 9.9A3 3 0 0 0 14.1 14.1"/></svg></button></div>
     <button class="btn primary full" onclick="login()">ログイン</button>
     
-    <div class="version-note">Ver.2.8.8</div>
+    <div class="version-note">Ver.2.8.63</div>
   </div>
 </div>
 
 <div id="app" class="hidden app-shell">
   <header class="app-header">
     <div class="brand-lockup brand-image-lockup">
-      <img src="assets/img/aisapo-logo.png?v=2.8.8" alt="あいサポ" class="aisapo-logo-image">
+      <img src="assets/img/aisapo-logo.png?v=2.8.63" alt="あいサポ" class="aisapo-logo-image">
     </div>
     <div class="mobile-user-actions">
-      <div class="mobile-user-name" id="mobileUserName">ユーザー</div>
+      <div class="mobile-user-identity">
+        <div id="mobileUserAvatar" class="mobile-user-avatar">👤</div>
+        <div class="mobile-user-meta"><div class="mobile-user-name" id="mobileUserName">ユーザー</div><div class="mobile-user-role" id="mobileUserRole">一般ユーザー</div></div>
+      </div>
       <button type="button" class="mobile-pw-btn" onclick="openPasswordModal(false)">PW変更</button>
       <button type="button" class="mobile-logout-btn" onclick="logout()">ログアウト</button>
     </div>
@@ -41,7 +44,7 @@
       <button id="adminTab" class="tab hidden has-tip" data-tip="ユーザーや活動エリアを管理します" data-view="admin" onclick="showView('admin')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L14.5 3h-5L9 6a8 8 0 0 0-1.7 1L5 6 3 9.5 5.1 11A7 7 0 0 0 5 12c0 .3 0 .7.1 1L3 14.5 5 18l2.4-1a8 8 0 0 0 1.7 1l.4 3h5l.4-3a8 8 0 0 0 1.7-1l2.4 1 2-3.5-2.1-1.5c.1-.3.1-.7.1-1Z"/></svg><span>管理</span></button>
     </nav>
     <div class="user-menu">
-      <div class="user-avatar">👤</div>
+      <div id="userAvatar" class="user-avatar">👤</div>
       <div class="user-meta"><b id="userName"></b><span id="userRole"></span></div>
       <div class="user-actions"><button onclick="openPasswordModal(false)">PW変更</button><button onclick="logout()">ログアウト</button></div>
     </div>
@@ -50,9 +53,8 @@
   <main class="app-main">
     <div id="appMsg"></div><div id="branchMessageModal" class="modal-bg" style="display:none">
   <div class="modal-card branch-message-modal">
-    <div class="modal-head"><h2>📣 支部連絡を追加</h2><button class="icon-btn" onclick="closeBranchMessageModal()">×</button></div>
-    <label class="label">宛先</label>
-    <select id="branchMessageTo"></select>
+    <div class="modal-head"><h2 id="branchMessageModalTitle">📣 支部連絡を追加</h2><button class="icon-btn" onclick="closeBranchMessageModal()">×</button></div>
+    <input id="branchMessageId" type="hidden">
     <label class="label">件名</label>
     <input id="branchMessageTitle" maxlength="80" placeholder="例：ポスター掲示について">
     <label class="label">内容</label>
@@ -78,18 +80,35 @@
           </div>
 <div class="desktop-map-meta">
             <div class="map-legend-row">
-              <div class="map-legend-inline">
-                <span class="gray">●未訪問</span><span class="blue">●訪問済</span><span class="green">●手応え</span>
-                <span class="orange">●不在</span><span class="red">●要再訪</span><span>⭐党員</span><span>🟠サポーター</span>
+              <div class="map-legend-inline cute-map-legend">
+                <span><i class="legend-mini-pin legend-unvisited" data-symbol="⌂"></i>未訪問</span>
+                <span><i class="legend-mini-pin legend-visited" data-symbol="✓"></i>訪問済</span>
+                <span><i class="legend-mini-pin legend-absent" data-symbol="🚪"></i>不在</span>
+                <span><i class="legend-mini-pin legend-revisit" data-symbol="↻"></i>再訪予定</span>
+                <span><i class="legend-mini-pin legend-refused" data-symbol="×"></i>断られた</span>
+                <span><i class="legend-extra legend-warning">!</i>訪問注意</span>
+                <span><i class="legend-extra legend-party">★</i>党員</span>
+                <span><i class="legend-extra legend-supporter">♥</i>サポーター</span>
               </div>
-              <div id="mapResultCount" class="map-result-count">該当 0件</div>
+              <div class="map-meta-actions">
+                <div id="mapResultCount" class="map-result-count">該当 0件</div>
+                <button type="button" id="mapFilterToggle" class="btn map-filter-toggle" onclick="toggleMapFilters()" aria-expanded="false"><svg class="filter-funnel-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16l-6.3 7.1v4.5l-3.4 1.8v-6.3L4 6Z"/></svg><span>絞り込み</span></button>
+              </div>
             </div>
           </div>
+          <div id="mapQuickFilters" class="chip-filters map-quick-filters filters-collapsed">
+            <label><input id="mapFollow" type="checkbox" onchange="renderMarkers()">フォロー対象</label>
+            <label><input id="mapFollowPending" type="checkbox" onchange="renderMarkers()">未対応のみ</label>
+            <label><input id="mapPosterRequest" type="checkbox" onchange="renderMarkers()">ポスター依頼</label>
+            <label><input id="mapPriorityHigh" type="checkbox" onchange="renderMarkers()">優先度 高</label>
+            <label><input id="mapPriorityMedium" type="checkbox" onchange="renderMarkers()">優先度 中</label>
+            <label><input id="mapPriorityLow" type="checkbox" onchange="renderMarkers()">優先度 低</label>
+          </div>
           <div class="mobile-map-meta">
-      <button type="button" class="map-legend-toggle" onclick="toggleMobileLegend()">地図の見方 <span aria-hidden="true">›</span></button>
-      <strong id="mobileMapCount">表示 <span id="mobileMapCountValue">0</span>件</strong>
+      <span class="map-legend-label">地図の見方</span>
+      <div class="mobile-map-actions"><strong id="mobileMapCount">表示 <span id="mobileMapCountValue">0</span>件</strong><button type="button" id="mobileMapFilterToggle" class="btn map-filter-toggle mobile-map-filter-toggle" onclick="toggleMapFilters()" aria-expanded="false"><svg class="filter-funnel-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16l-6.3 7.1v4.5l-3.4 1.8v-6.3L4 6Z"/></svg><span>絞り込み</span></button></div>
     </div>
-    <div id="mobileMapLegend" class="mobile-map-legend hidden"></div>
+    <div id="mobileMapLegend" class="mobile-map-legend"></div>
     <div id="map"></div>
         </div>
 </div>
@@ -97,26 +116,34 @@
 
     <section id="view-list" class="view-section hidden">
       <div class="panel list-filter-panel">
-        <div class="section-heading"><div class="heading-icon green"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></div><div><h2>訪問先一覧</h2><p>検索・絞り込みから次に回る場所を確認</p></div></div>
+        <div class="section-heading list-heading"><div class="heading-icon green"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg></div><div><h2>訪問先一覧</h2><p>検索・絞り込みから次に回る場所を確認</p></div><button type="button" id="listBackToAnalysis" class="btn list-back-analysis hidden" onclick="showView('analysis')" aria-label="活動状況に戻る"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/><path d="M9 12h10"/></svg><span>活動状況へ戻る</span></button></div>
+<button type="button" id="listBackToAnalysisFloating" class="list-back-analysis-floating hidden" onclick="showView('analysis')" aria-label="活動状況に戻る"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/><path d="M9 12h10"/></svg><span>活動状況へ戻る</span></button>
         <div class="list-search-tools">
           <div class="search-box wide"><span>⌕</span><input id="listSearch" placeholder="名前・住所・電話・メモで検索" oninput="renderLists()"></div>
-          <button type="button" id="listFilterToggle" class="btn list-filter-toggle" onclick="toggleListFilters()">⚙ 絞り込み</button>
+          <button type="button" id="listFilterToggle" class="btn list-filter-toggle" onclick="toggleListFilters()"><svg class="filter-funnel-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16l-6.3 7.1v4.5l-3.4 1.8v-6.3L4 6Z"/></svg><span>絞り込み</span></button>
         </div>
-        <div id="listFilterPanel" class="list-filter-body">
+        <div id="listFilterPanel" class="list-filter-body filters-collapsed">
+          <div class="filter-panel-actions"><button type="button" class="btn filter-clear-btn" onclick="clearListFilters()">条件をクリア</button></div>
           <div class="row list-select-filters">
             <div><label class="label">登録方法</label><select id="listSource" onchange="renderLists()"><option value="">すべて</option><option value="import">名簿取込</option><option value="manual">手入力</option><option value="map">地図登録</option></select></div>
             <div><label class="label">区分</label><select id="listMemberType" onchange="renderLists()"><option value="">すべて</option><option value="party_member">党員</option><option value="supporter">サポーター</option><option value="general">一般</option><option value="unknown">未設定</option></select></div>
-            <div><label class="label">位置</label><select id="listLocation" onchange="renderLists()"><option value="">すべて</option><option value="located">取得済</option><option value="unlocated">未取得</option></select></div>
+            <div><label class="label">支持ランク</label><select id="listSupportRank" onchange="renderLists()"><option value="">すべて</option><option value="A">A（強い支持）</option><option value="B">B（支持・好感）</option><option value="C">C（接触済・未確定）</option><option value="unranked">未判定</option></select></div><div><label class="label">位置</label><select id="listLocation" onchange="renderLists()"><option value="">すべて</option><option value="located">取得済</option><option value="unlocated">未取得</option></select></div>
+            <div><label class="label">並び順</label><select id="listSort" onchange="renderLists()"><option value="default">通常</option><option value="next_visit">次回訪問日の近い順</option><option value="date_desc">訪問日の新しい順</option><option value="date_asc">訪問日の古い順</option></select></div>
+            <div><label class="label">訪問日（開始）</label><input id="listDateFrom" type="date" onchange="renderLists()"></div><div><label class="label">訪問日（終了）</label><input id="listDateTo" type="date" onchange="renderLists()"></div>
           </div>
           <div id="listQuickFilters" class="chip-filters">
-            <label><input id="listRevisit" type="checkbox" onchange="renderLists()"> 🔁 再訪</label>
-            <label><input id="listUnvisited" type="checkbox" onchange="renderLists()"> 未訪問</label>
-            <label><input id="listRefused" type="checkbox" onchange="renderLists()"> × 断られた</label>
-            <label><input id="listWarning" type="checkbox" onchange="renderLists()"> ⚠ 訪問注意</label>
-            <label><input id="listFollow" type="checkbox" onchange="renderLists()"> 🤝 フォロー対象</label>
-            <label><input id="listFollowPending" type="checkbox" onchange="renderLists()"> 未対応のみ</label>
-            <label><input id="listPosterRequest" type="checkbox" onchange="renderLists()"> 🍊 ポスター依頼</label>
-            <label><input id="listPosterPending" type="checkbox" onchange="renderLists()"> 未報告のみ</label>
+            <label><input id="listUnvisited" type="checkbox" onchange="renderLists()"><span class="filter-dot filter-unvisited">●</span>未訪問</label>
+            <label><input id="listVisited" type="checkbox" onchange="renderLists()"><span class="filter-dot filter-visited">✓</span>訪問済</label>
+            <label><input id="listAbsent" type="checkbox" onchange="renderLists()"><span class="filter-dot filter-absent">🚪</span>不在</label>
+            <label><input id="listRevisit" type="checkbox" onchange="renderLists()"><span class="filter-dot filter-revisit">↻</span>再訪予定</label>
+            <label><input id="listRefused" type="checkbox" onchange="renderLists()"><span class="filter-dot filter-refused">×</span>断られた</label>
+            <label><input id="listWarning" type="checkbox" onchange="renderLists()"><span class="filter-dot filter-warning">!</span>訪問注意</label>
+            <label><input id="listUrgent" type="checkbox" onchange="renderLists()"><span class="filter-dot filter-warning">⚡</span>急ぎ</label>
+            <label><input id="listOverdue" type="checkbox" onchange="renderLists()"><span class="filter-dot filter-pending">⌛</span>再訪期限超過</label>
+            <label><input id="listFollow" type="checkbox" onchange="renderLists()"><span class="filter-dot filter-follow">◆</span>フォロー対象</label>
+            <label><input id="listFollowPending" type="checkbox" onchange="renderLists()"><span class="filter-dot filter-pending">⌛</span>未対応のみ</label>
+            <label><input id="listPosterRequest" type="checkbox" onchange="renderLists()"><span class="filter-dot filter-poster">▣</span>ポスター依頼</label>
+            <label><input id="listPosterPending" type="checkbox" onchange="renderLists()"><span class="filter-dot filter-report">!</span>未報告のみ</label>
           </div>
         </div>
       </div>
@@ -126,14 +153,14 @@
     <section id="view-contacts" class="view-section hidden">
       <div class="panel">
         <div class="section-heading"><div class="heading-icon green"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M2 20c.7-5 3-7 6-7s5.3 2 6 7M14 14c3.8 0 5.7 1.8 6.5 6"/></svg></div><div><h2>名簿</h2><p>正式名簿から取り込んだ党員・サポーター情報</p></div></div>
-        <div class="notice">名簿は別システムを正として管理します。あいサポでは取り込みと確認のみ行います。</div>
+        <div class="notice">あいサポでは、活動に必要な情報だけを、必要最小限にして管理します。</div>
       </div>
       <div id="contactImportPanel" class="panel hidden">
         <div class="card-title">Excel / CSV 名簿取り込み</div>
-        <div class="notice">位置を取得できないデータも登録されます。</div>
+        <div class="notice">🔐 取り込み時に住所は位置情報へ変換し、あいサポには保存しません。保存する名簿情報は「党員ID・苗字・位置情報」のみです。位置を取得できないデータは登録せず、取り込み後に確認できます。</div>
         <label class="label">Excel / CSV</label><input id="contactImportFile" type="file" accept=".xlsx,.xls,.csv">
-        <button class="btn primary full" onclick="importContactsFile()">名簿を取り込む</button>
-        <div id="importResult" class="import-result"></div>
+        <button id="contactImportBtn" class="btn primary full" onclick="importContactsFile()">名簿を取り込む</button>
+        <div id="importResult" class="import-result"></div><div id="pendingImportPanel" class="notice warning hidden"><strong>⚠ 位置未確認データ</strong><div id="pendingImportSummary"></div><div id="pendingImportList"></div></div>
       </div>
     </section>
 
@@ -141,59 +168,82 @@
 
     <section id="view-admin" class="view-section hidden">
       <div class="admin-grid">
-        <div class="panel"><div class="section-heading"><div class="heading-icon green"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L14.5 3h-5L9 6a8 8 0 0 0-1.7 1L5 6 3 9.5 5.1 11A7 7 0 0 0 5 12c0 .3 0 .7.1 1L3 14.5 5 18l2.4-1a8 8 0 0 0 1.7 1l.4 3h5l.4-3a8 8 0 0 0 1.7-1l2.4 1 2-3.5-2.1-1.5c.1-.3.1-.7.1-1Z"/></svg></div><div><h2>ユーザー追加</h2><p>利用者の権限と担当エリアを設定</p></div></div>
+        <div class="panel span-2 admin-user-create-panel"><div class="section-heading"><div class="heading-icon green"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L14.5 3h-5L9 6a8 8 0 0 0-1.7 1L5 6 3 9.5 5.1 11A7 7 0 0 0 5 12c0 .3 0 .7.1 1L3 14.5 5 18l2.4-1a8 8 0 0 0 1.7 1l.4 3h5l.4-3a8 8 0 0 0 1.7-1l2.4 1 2-3.5-2.1-1.5c.1-.3.1-.7.1-1Z"/></svg></div><div><h2>ユーザー追加</h2><p>利用者の権限と担当エリアを設定</p></div></div>
           <label class="label">ユーザーID</label><input id="newLoginId">
           <label class="label">表示名</label><input id="newName">
-          <label class="label">仮パスワード</label><input id="newPassword" type="password" placeholder="10文字以上・英字と数字">
+          <label class="label">仮パスワード</label><div class="password-field-character"><input id="newPassword" type="password" placeholder="10文字以上・英字と数字"><button type="button" class="password-character-toggle" data-password-toggle="newPassword" onclick="togglePasswordCharacter(event,this)" aria-label="パスワードを表示"><svg class="password-eye-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3 3.7M6.2 6.2C3.5 8 2 12 2 12s3.5 6 10 6c1.8 0 3.3-.5 4.6-1.2"/><path d="M9.9 9.9A3 3 0 0 0 14.1 14.1"/></svg></button></div>
           <div class="notice">本人は初回ログイン時にパスワード変更が必須です。</div>
           <label class="label">権限</label><select id="newRole" onchange="syncNewUserArea()"><option value="member">一般</option><option value="leader">支部管理者</option></select>
           <label class="label">所属支部</label><select id="newBranch" onchange="syncNewUserArea()"></select>
           <div id="newAreaWrap"><label class="label">固定活動エリア</label><select id="newArea"></select><div class="notice">一般利用者は設定されたエリアのみ利用できます。</div></div>
           <button class="btn primary full" onclick="createUser()">ユーザーを追加</button>
         </div>
-        <div id="areaAddPanel" class="panel hidden"><div class="card-title">活動エリア追加</div>
+        <div id="areaAddPanel" class="panel span-2 hidden admin-area-create-panel"><div class="card-title">活動エリア追加</div>
           <label class="label">支部</label><select id="areaBranch"></select>
           <label class="label">市区町村</label><input id="areaCity" value="福岡市">
           <label class="label">エリア名</label><input id="areaName" placeholder="例：博多区">
           <input id="areaLat" type="hidden"><input id="areaLng" type="hidden">
           <button class="btn primary full area-add-btn" onclick="createArea()">エリアを追加</button>
         </div>
-        <div class="panel span-2"><div class="card-title">登録エリア</div><div id="areasTable"></div></div>
-        <div class="panel span-2"><div class="card-title">登録ユーザー</div><div id="usersTable"></div></div>
+        <div class="panel span-2 admin-areas-panel"><div class="card-title admin-areas-title">登録エリア <button type="button" class="mini-btn admin-areas-toggle" id="areasToggleBtn" onclick="toggleAdminAreas()">一覧を表示 ▼</button></div><div id="areasTable" class="hidden"></div></div>
+        <div class="panel span-2"><div class="card-title">登録ユーザー</div><div class="admin-user-filters"><input id="adminUserSearch" placeholder="ID・氏名で検索" oninput="renderUsers()"><select id="adminUserRole" onchange="renderUsers()"><option value="">権限すべて</option><option value="system_admin">システム管理者</option><option value="leader">支部管理者</option><option value="member">一般利用者</option></select><select id="adminUserActive" onchange="renderUsers()"><option value="">有効・無効すべて</option><option value="active">有効</option><option value="inactive">無効</option></select></div><div id="usersTable"></div></div><div id="loginHistoryPanel" class="panel span-2 hidden"><div class="card-title admin-areas-title">ログイン履歴 <button type="button" class="mini-btn admin-areas-toggle" id="loginHistoryToggleBtn" onclick="toggleLoginHistory()">履歴を表示 ▼</button></div><div id="loginHistoryTable" class="hidden"></div></div>
       </div>
     </section>
+
+    <button type="button" id="listScrollTopFloating" class="scroll-top-floating hidden" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="一覧の上へ戻る">↑ <span>上へ</span></button>
+    <button type="button" id="analysisScrollTopFloating" class="scroll-top-floating hidden" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="活動状況の上へ戻る">↑ <span>上へ</span></button>
   </main>
 </div>
 
 <div id="editModal" class="modal-bg" onclick="closeEdit()">
   <div class="modal detail-modal" onclick="event.stopPropagation()">
     <div class="detail-hero">
-      <div class="detail-identity"><div class="detail-avatar">👤</div><div><div class="eyebrow">訪問先詳細</div><h2 id="detailHeaderName">訪問先</h2><div id="detailHeaderAddress" class="muted"></div></div></div>
-      <div class="detail-hero-actions"><span id="detailHeaderStatus" class="status-pill"></span><button class="close" onclick="closeEdit()">×</button></div>
+      <div class="detail-identity"><div class="detail-avatar">👤</div><div class="detail-identity-copy"><div class="detail-summary-line"><div class="eyebrow">訪問先詳細</div><div class="detail-summary-badges"><span id="detailHeaderStatus" class="status-pill"></span><span id="detailVisitCount" class="status-pill visit-count-pill hidden"></span></div></div><h2 id="detailHeaderName">訪問先</h2><div id="detailHeaderAddress" class="muted"></div></div></div>
+      <div class="detail-hero-actions"><button class="close" onclick="closeEdit()">×</button></div>
     </div>
     <input id="recordId" type="hidden"><input id="lat" type="hidden"><input id="lng" type="hidden"><input id="recordSource" type="hidden">
+    <div id="detailQuickSummary" class="detail-quick-summary"></div>
 
     <div class="detail-grid">
       <div class="detail-main">
-        <section class="detail-section">
-          <div class="detail-section-title"><span>👤</span> 基本情報</div>
+        <details class="detail-section" open>
+          <summary class="detail-section-title"><span>👤</span> 基本情報</summary>
           <label class="label">氏名・名称</label><input id="personName" placeholder="例：山田さん、○○商店">
-          <label class="label">住所</label><input id="fullAddress">
+          <div id="recordAddressBlock"><label class="label">住所</label>
+          <div class="address-google-row"><input id="fullAddress"><button id="openGoogleMapsBtn" type="button" class="btn google-maps-btn hidden" onclick="openRecordInGoogleMaps()">📍 Google マップで開く</button></div></div>
+          <div id="recordImportedLocationBlock" class="hidden"><label class="label">位置情報</label><div id="recordLocationMap" class="record-location-map"></div><div class="address-google-row"><button id="recordLocationEditBtn" type="button" class="btn" onclick="toggleRecordLocationEdit()">位置を修正</button><button id="openGoogleMapsBtnImported" type="button" class="btn google-maps-btn" onclick="openRecordInGoogleMaps()">📍 Google マップで開く</button></div></div>
           <div id="recordLocationNote" class="notice hidden"></div>
           <div class="row"><div><label class="label">区分</label><select id="recordMemberType"><option value="general">一般</option><option value="party_member">党員</option><option value="supporter">サポーター</option><option value="unknown">未設定</option></select></div><div><label class="label">対象種別</label><select id="type"><option>戸建て</option><option>集合住宅</option><option>事業所</option><option>その他</option></select></div></div>
-          <div class="row"><div><label class="label">電話</label><input id="recordPhone" inputmode="tel"></div><div><label class="label">メール</label><input id="recordEmail" type="email"></div></div>
+          <div id="recordContactFields" class="row"><div><label class="label">電話</label><input id="recordPhone" inputmode="tel"></div><div><label class="label">メール</label><input id="recordEmail" type="email"></div></div>
           <label class="label">紹介者</label><input id="referrer" placeholder="例：山田さん、○○さんからの紹介">
+        </details>
+
+        <section class="detail-section visit-summary-section">
+          <div class="detail-section-title green"><span>📋</span> 訪問状況</div>
+          <div id="visitSummary" class="visit-summary"></div>
+          <div id="statusGrid" class="status-grid hidden"></div>
         </section>
 
-        <section class="detail-section status-section">
-          <div class="detail-section-title green"><span>📋</span> 訪問ステータス</div>
-          <div id="statusGrid" class="status-grid"></div>
-        </section>
+        <details class="detail-section visit-history-section"><summary class="detail-section-title"><span>🕘</span> 訪問履歴</summary>
+          <div id="visitHistoryWrap" class="visit-history-wrap">
+            <div id="visitHistoryList" class="visit-history-list"><div class="visit-history-empty">読み込み中…</div></div>
+          </div>
+        </details>
 
-        <section class="detail-section">
-          <div class="detail-section-title"><span>📝</span> 訪問記録</div>
-          <label class="label">訪問日</label><input id="date" type="date">
-          <label class="label">メモ</label><textarea id="memo" placeholder="会話内容や次回につながる情報"></textarea>
+        <section class="detail-section visit-round-section">
+          <div class="detail-section-title"><span>🚶</span> 今回の訪問を記録</div>
+          <div class="notice visit-help">不在でも1回として記録します。保存すると訪問履歴に追加され、訪問状況も自動更新されます。</div>
+          <div class="row">
+            <div><label class="label">巡回</label><select id="visitRound"><option value="">自動（次の巡回）</option><option value="1">1巡目</option><option value="2">2巡目</option><option value="3">3巡目</option><option value="4">4巡目以降</option></select></div>
+            <div><label class="label">訪問日</label><input id="date" type="date"></div>
+          </div>
+          <label class="label">訪問結果</label>
+          <select id="visitResult" onchange="toggleVisitResultFields()"><option value="">今回は履歴に追加しない</option><option value="talked">本人と話せた</option><option value="family">家族・同居人と話せた</option><option value="absent">不在</option><option value="intercom">インターフォンのみ</option><option value="refused">断られた</option><option value="other">その他</option></select>
+          <div id="visitResultFields" class="hidden">
+            <label class="choice-chip visit-posting-chip"><input id="visitPosted" type="checkbox"> 📮 ポスティングした</label>
+          </div>
+          <label class="label">次回訪問日</label><input id="nextVisitDate" type="date"><div class="notice visit-help">訪問結果を追加しない場合でも、次回予定だけ変更できます。</div>
+          <label class="label">メモ</label><textarea id="memo" placeholder="会話内容・不在時の状況・次回につながる情報"></textarea>
         </section>
 
         <section class="detail-section follow-section">
@@ -207,21 +257,20 @@
             <label class="choice-chip done-chip"><input id="followDone" type="checkbox"> ✓ 対応済み</label>
             <label class="label">フォローメモ</label><textarea id="followMemo" placeholder="連絡内容・次回対応など"></textarea>
           </div>
-          <label class="label">支持者候補</label><select id="supporter"><option value="">未設定</option><option>◎有力</option><option>○可能性あり</option><option>△様子見</option><option>×なし</option></select>
-          <label class="label">再訪優先度</label><select id="priority"><option value="">なし</option><option>△低</option><option>○中</option><option>◎高</option></select>
+          <div class="follow-subsection poster-follow">
+            <div class="detail-subtitle orange">🍊 ポスター掲示</div>
+            <label class="choice-chip"><input id="posterRequest" type="checkbox" onchange="togglePosterRequestFields()"> ポスター掲示依頼</label>
+            <div id="posterRequestFields" class="hidden">
+              <label class="choice-chip done-chip"><input id="posterReported" type="checkbox"> ✓ 党へ報告済み</label>
+              <label class="label">依頼メモ</label><textarea id="posterRequestMemo" placeholder="掲示場所や希望など"></textarea>
+            </div>
+          </div>
+          <label class="label">支持ランク</label><select id="supporter"><option value="">未判定</option><option value="A">A（強い支持）</option><option value="B">B（支持・好感）</option><option value="C">C（接触済・未確定）</option></select><div class="notice support-rank-note">支持状況は訪問結果とは別に管理します。</div>
+          <label class="choice-chip urgent-chip"><input id="urgent" type="checkbox"> ⚡ 急ぎで対応</label>
         </section>
       </div>
 
       <aside class="detail-side">
-        <section class="detail-section poster-request-box">
-          <div class="detail-section-title orange"><span>🍊</span> ポスター掲示依頼</div>
-          <label class="choice-chip"><input id="posterRequest" type="checkbox" onchange="togglePosterRequestFields()"> 掲示依頼あり</label>
-          <div id="posterRequestFields" class="hidden">
-            <label class="choice-chip done-chip"><input id="posterReported" type="checkbox"> ✓ 党へ報告済み</label>
-            <label class="label">依頼メモ</label><textarea id="posterRequestMemo" placeholder="掲示場所や希望など"></textarea>
-          </div>
-        </section>
-
         <section class="detail-section warning-box">
           <div class="detail-section-title danger"><span>⚠</span> 注意・特記事項</div>
           <label class="choice-chip danger-chip"><input id="warning" type="checkbox" onchange="toggleWarningFields()"> 訪問注意</label>
@@ -236,6 +285,11 @@
     <div class="detail-footer">
       <div id="deleteRecordRow" class="delete-record-row hidden"><button id="deleteRecordBtn" class="btn danger-outline" onclick="deleteRecord()">この訪問先を削除</button></div>
       <div class="actions"><button id="cancelRecordBtn" class="btn" onclick="closeEdit()">キャンセル</button><button id="saveRecordBtn" class="btn primary" onclick="saveRecord()">保存</button></div>
+    </div>
+    <div id="mobileDetailActionBar" class="mobile-detail-action-bar" aria-label="詳細画面の操作">
+      <button id="mobileDetailDeleteBtn" type="button" class="btn danger-outline hidden" onclick="deleteRecord()">🗑 削除</button>
+      <button id="mobileDetailCancelBtn" type="button" class="btn" onclick="closeEdit()">閉じる</button>
+      <button id="mobileSaveRecordBtn" type="button" class="btn primary" onclick="saveRecord()">保存</button>
     </div>
   </div>
 </div>
@@ -254,14 +308,39 @@
 <div class="row"><div><label class="label">セイ</label><input id="contactLastNameKana"></div><div><label class="label">メイ</label><input id="contactFirstNameKana"></div></div>
 <label class="label">生年月日</label><input id="contactBirthDate" type="date"><label class="label">性別</label><input id="contactGender"><label class="label">職業</label><input id="contactOccupation"><label class="label">承認日</label><input id="contactApprovedAt" type="date"><label class="label">入党（入会）理由</label><textarea id="contactJoinReason"></textarea>
 </details>
-<label class="label">紹介者</label><input id="contactReferrer"><label class="label">支持状況</label><select id="contactSupporter"><option value="">未設定</option><option>◎有力</option><option>○可能性あり</option><option>△様子見</option><option>×なし</option></select><label class="label">メモ</label><textarea id="contactMemo"></textarea><div class="actions"><button class="btn primary" onclick="saveContact()">保存</button><button class="btn danger" onclick="deleteContact()">削除</button></div></div></div>
+<label class="label">紹介者</label><input id="contactReferrer"><label class="label">支持ランク</label><select id="contactSupporter"><option value="">未判定</option><option value="A">A（強い支持）</option><option value="B">B（支持・好感）</option><option value="C">C（接触済・未確定）</option></select><label class="label">メモ</label><textarea id="contactMemo"></textarea><div class="actions"><button class="btn primary" onclick="saveContact()">保存</button><button class="btn danger" onclick="deleteContact()">削除</button></div></div></div>
 
 
 
-<div id="passwordModal" class="modal-bg" onclick="closePasswordModal()"><div class="modal" onclick="event.stopPropagation()"><div class="modal-head"><div id="passwordModalTitle" class="modal-title">パスワード変更</div><button id="passwordClose" class="close" onclick="closePasswordModal()">×</button></div><div id="passwordModalNote" class="notice"></div><div id="passwordMsg"></div><label class="label">現在のパスワード</label><input id="currentPassword" type="password" autocomplete="current-password"><label class="label">新しいパスワード</label><input id="newPassword1" type="password" autocomplete="new-password" placeholder="10文字以上・英字と数字"><label class="label">新しいパスワード（確認）</label><input id="newPassword2" type="password" autocomplete="new-password"><button class="btn primary full" onclick="changeOwnPassword()">パスワードを変更</button></div></div>
+
+<div id="userEditModal" class="modal-bg" onclick="closeUserEditModal()">
+  <div class="modal user-edit-modal" onclick="event.stopPropagation()">
+    <div class="modal-head"><div class="modal-title">ユーザー編集</div><button class="close" onclick="closeUserEditModal()">×</button></div>
+    <input id="editUserId" type="hidden">
+    <label class="label">ユーザーID</label><input id="editUserLoginId" readonly>
+    <label class="label">表示名</label><input id="editUserName">
+    <label class="label">権限</label><select id="editUserRole" onchange="syncUserEditArea()"><option value="member">一般利用者</option><option value="leader">支部管理者</option></select>
+    <label class="label">所属支部</label><select id="editUserBranch" onchange="syncUserEditArea()"></select>
+    <div id="editUserAreaWrap"><label class="label">活動エリア</label><select id="editUserArea"></select></div>
+    <div class="actions user-edit-actions"><button class="btn" onclick="closeUserEditModal()">キャンセル</button><button class="btn primary" onclick="saveUserEditFromModal()">保存</button></div>
+  </div>
+</div>
+
+<div id="passwordModal" class="modal-bg" onclick="closePasswordModal()"><div class="modal" onclick="event.stopPropagation()"><div class="modal-head"><div id="passwordModalTitle" class="modal-title">パスワード変更</div><button id="passwordClose" class="close" onclick="closePasswordModal()">×</button></div><div id="passwordModalNote" class="notice"></div><div id="passwordMsg"></div><label class="label">現在のパスワード</label><div class="password-field-character"><input id="currentPassword" type="password" autocomplete="current-password"><button type="button" class="password-character-toggle" data-password-toggle="currentPassword" onclick="togglePasswordCharacter(event,this)" aria-label="パスワードを表示"><svg class="password-eye-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3 3.7M6.2 6.2C3.5 8 2 12 2 12s3.5 6 10 6c1.8 0 3.3-.5 4.6-1.2"/><path d="M9.9 9.9A3 3 0 0 0 14.1 14.1"/></svg></button></div><label class="label">新しいパスワード</label><div class="password-field-character"><input id="newPassword1" type="password" autocomplete="new-password" placeholder="10文字以上・英字と数字"><button type="button" class="password-character-toggle" data-password-toggle="newPassword1" onclick="togglePasswordCharacter(event,this)" aria-label="パスワードを表示"><svg class="password-eye-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3 3.7M6.2 6.2C3.5 8 2 12 2 12s3.5 6 10 6c1.8 0 3.3-.5 4.6-1.2"/><path d="M9.9 9.9A3 3 0 0 0 14.1 14.1"/></svg></button></div><label class="label">新しいパスワード（確認）</label><div class="password-field-character"><input id="newPassword2" type="password" autocomplete="new-password"><button type="button" class="password-character-toggle" data-password-toggle="newPassword2" onclick="togglePasswordCharacter(event,this)" aria-label="パスワードを表示"><svg class="password-eye-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3 3.7M6.2 6.2C3.5 8 2 12 2 12s3.5 6 10 6c1.8 0 3.3-.5 4.6-1.2"/><path d="M9.9 9.9A3 3 0 0 0 14.1 14.1"/></svg></button></div><button class="btn primary full password-change-submit" onclick="changeOwnPassword()">パスワードを変更</button></div></div>
 
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<div id="importLocationModal" class="modal-bg" onclick="closePendingImportLocation()" style="display:none"><div class="modal" onclick="event.stopPropagation()"><div class="modal-head"><h2>位置未確認データ</h2><button class="close" onclick="closePendingImportLocation()">×</button></div><div id="pendingImportPerson" class="notice"></div><div class="notice">下の住所は位置確認のため一時表示しています。あいサポには保存されません。</div><div id="pendingImportAddress" class="pending-address"></div><div id="importLocationMap" class="record-location-map"></div><div class="actions"><button class="btn" onclick="closePendingImportLocation()">後で確認</button><button id="savePendingImportBtn" class="btn primary" onclick="savePendingImportLocation()">この位置で登録</button></div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="assets/js/config.js?v=2.8.8"></script><script src="assets/js/state.js?v=2.8.8"></script><script src="assets/js/utils.js?v=2.8.8"></script><script src="assets/js/api.js?v=2.8.8"></script><script src="assets/js/auth.js?v=2.8.8"></script><script src="assets/js/map.js?v=2.8.8"></script><script src="assets/js/records.js?v=2.8.8"></script><script src="assets/js/contacts.js?v=2.8.8"></script><script src="assets/js/views.js?v=2.8.8"></script><script src="assets/js/admin.js?v=2.8.8"></script><script src="assets/js/main.js?v=2.8.8"></script>
+<script src="assets/js/config.js?v=2.8.63"></script>
+<script src="assets/js/state.js?v=2.8.63"></script>
+<script src="assets/js/utils.js?v=2.8.63"></script>
+<script src="assets/js/api.js?v=2.8.63"></script>
+<script src="assets/js/auth.js?v=2.8.63"></script>
+<script src="assets/js/map.js?v=2.8.63"></script>
+<script src="assets/js/records.js?v=2.8.63"></script>
+<script src="assets/js/contacts.js?v=2.8.63"></script>
+<script src="assets/js/views.js?v=2.8.63"></script>
+<script src="assets/js/admin.js?v=2.8.63"></script>
+<script src="assets/js/main.js?v=2.8.63"></script>
 </body></html>

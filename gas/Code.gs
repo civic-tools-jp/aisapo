@@ -1,163 +1,68 @@
-const SHEETS={USERS:'Users',BRANCHES:'Branches',AREAS:'Areas',CONTACTS:'Contacts',RECORDS:'Records',SESSIONS:'Sessions',BRANCH_MESSAGES:'BranchMessages'};
+// あいサポ Ver.2.8.57 API — production source
+// Source cleanup only: no data migration code or one-off maintenance functions.
+
+const SHEETS={USERS:'Users',BRANCHES:'Branches',AREAS:'Areas',CONTACTS:'Contacts',RECORDS:'Records',VISIT_HISTORY:'VisitHistory',SESSIONS:'Sessions',BRANCH_MESSAGES:'BranchMessages',LOGIN_HISTORY:'LoginHistory'};
 const USER_HEADERS=['userId','loginId','name','passwordHash','salt','role','branchId','areaId','active','mustChangePassword','createdAt','updatedAt'];
 const BRANCH_HEADERS=['branchId','name','prefecture','active'];
 const AREA_HEADERS=['areaId','branchId','city','name','mapLat','mapLng','active'];
 const CONTACT_HEADERS=['contactId','branchId','areaId','partyId','lastName','firstName','lastNameKana','firstNameKana','name','phone','email','postalCode','fullAddress','memberType','birthDate','gender','occupation','approvedAt','branchParticipation','joinReason','sourceBranch','lat','lng','referrer','supporter','assigneeId','assigneeName','memo','createdAt','updatedAt','updatedBy'];
-const RECORD_HEADERS=['id','branchId','areaId','active','inactiveAt','inactiveBy','inactiveReason','source','memberType','partyId','lastName','firstName','lastNameKana','firstNameKana','postalCode','birthDate','gender','occupation','approvedAt','branchParticipation','joinReason','sourceBranch','contactId','lat','lng','area','address','fullAddress','personName','phone','email','status','type','household','contact','revisitPriority','referrer','supporter','followParty','followSupporter','followDetails','followDone','followMemo','warning','warningReason','warningMemo','posterRequest','posterReported','posterRequestMemo','signboard','posterParty','posterMemo','memo','date','startTime','endTime','durationMinutes','googleMapsUrl','assigneeId','assigneeName','createdAt','updatedAt','updatedBy'];
+const RECORD_HEADERS=['id','branchId','areaId','active','inactiveAt','inactiveBy','inactiveReason','source','memberType','partyId','lastName','firstName','lastNameKana','firstNameKana','postalCode','birthDate','gender','occupation','approvedAt','branchParticipation','joinReason','sourceBranch','contactId','lat','lng','area','address','fullAddress','personName','phone','email','status','type','household','contact','revisitPriority','referrer','supporter','followParty','followSupporter','followDetails','followDone','followMemo','warning','warningReason','warningMemo','posterRequest','posterReported','posterRequestMemo','visitCount','roundNo','lastVisitResult','nextVisitDate','signboard','posterParty','posterMemo','memo','date','startTime','endTime','durationMinutes','googleMapsUrl','assigneeId','assigneeName','createdAt','updatedAt','updatedBy'];
+const VISIT_HISTORY_HEADERS=['visitId','recordId','branchId','areaId','roundNo','visitedAt','result','posted','nextVisitDate','memo','createdById','createdByName','createdAt'];
 const SESSION_HEADERS=['token','userId','expiresAt','createdAt'];
 const BRANCH_MESSAGE_HEADERS=['messageId','fromBranchId','toBranchId','title','body','createdBy','createdByName','createdAt','active'];
+const LOGIN_HISTORY_HEADERS=['logId','userId','loginId','name','success','loggedAt'];
 
-function doGet(){return json_({ok:true,name:'あいサポ Ver.2.8.8 API'});}
+function doGet(){return json_({ok:true,name:'あいサポ Ver.2.8.57 API'});}
 function doPost(e){try{const p=JSON.parse((e.postData&&e.postData.contents)||'{}');if(p.action==='setup')return json_(setup_(p));if(p.action==='login')return json_(login_(p));const user=auth_(p.token);switch(p.action){
 case'bootstrap':return json_(bootstrap_(user));
-case'listRecords':return json_(listRecords_(user,p));case'saveRecord':return json_(saveRecord_(user,p.record||{}));case'deleteRecord':return json_(deleteRecord_(user,p));
+case'listRecords':return json_(listRecords_(user,p));case'listVisitHistory':return json_(listVisitHistory_(user,p));case'activitySummary':return json_(activitySummary_(user,p));case'saveRecord':return json_(saveRecord_(user,p.record||{},p.visitEntry||null));case'deleteRecord':return json_(deleteRecord_(user,p));
 case'listContacts':return json_(listContacts_(user,p));case'saveContact':return json_(saveContact_(user,p.contact||{}));case'deleteContact':return json_(deleteContact_(user,p));
-case'listBranchMessages':return json_(listBranchMessages_(user,p));case'saveBranchMessage':return json_(saveBranchMessage_(user,p.message||{}));
-case'adminData':return json_(adminData_(user));case'createUser':return json_(createUser_(user,p.user||{}));case'setUserArea':return json_(setUserArea_(user,p));case'createArea':return json_(createArea_(user,p.area||{}));case'importContacts':return json_(importContacts_(user,p));case'changePassword':return json_(changePassword_(user,p));case'resetPassword':return json_(resetPassword_(user,p));
+case'listBranchMessages':return json_(listBranchMessages_(user,p));case'saveBranchMessage':return json_(saveBranchMessage_(user,p.message||{}));case'deleteBranchMessage':return json_(deleteBranchMessage_(user,p));
+case'saveImportedLocation':return json_(saveImportedLocation_(user,p));
+case'adminData':return json_(adminData_(user));case'createUser':return json_(createUser_(user,p.user||{}));case'updateUser':return json_(updateUser_(user,p));case'setUserArea':return json_(setUserArea_(user,p));case'setUserActive':return json_(setUserActive_(user,p));case'deleteUser':return json_(deleteUser_(user,p));case'createArea':return json_(createArea_(user,p.area||{}));case'deleteArea':return json_(deleteArea_(user,p));case'importContacts':return json_(importContacts_(user,p));case'changePassword':return json_(changePassword_(user,p));case'resetPassword':return json_(resetPassword_(user,p));
 default:throw Error('不明な処理です');}}catch(err){return json_({ok:false,error:String(err.message||err)});}}
 
-// 初回用。既にVer.2をセットアップ済みなら upgradeV21() を実行してください。
-function setup_(p){const ss=SpreadsheetApp.getActive();ensureSheet_(ss,SHEETS.USERS,USER_HEADERS);ensureSheet_(ss,SHEETS.BRANCHES,BRANCH_HEADERS);ensureSheet_(ss,SHEETS.AREAS,AREA_HEADERS);ensureSheet_(ss,SHEETS.CONTACTS,CONTACT_HEADERS);ensureSheet_(ss,SHEETS.RECORDS,RECORD_HEADERS);ensureSheet_(ss,SHEETS.SESSIONS,SESSION_HEADERS);ensureSheet_(ss,SHEETS.BRANCH_MESSAGES,BRANCH_MESSAGE_HEADERS);
+// 初回セットアップ用。既存環境では通常実行不要です。
+function setup_(p){const ss=SpreadsheetApp.getActive();ensureSheet_(ss,SHEETS.USERS,USER_HEADERS);ensureSheet_(ss,SHEETS.BRANCHES,BRANCH_HEADERS);ensureSheet_(ss,SHEETS.AREAS,AREA_HEADERS);ensureSheet_(ss,SHEETS.CONTACTS,CONTACT_HEADERS);ensureSheet_(ss,SHEETS.RECORDS,RECORD_HEADERS);ensureSheet_(ss,SHEETS.VISIT_HISTORY,VISIT_HISTORY_HEADERS);ensureSheet_(ss,SHEETS.SESSIONS,SESSION_HEADERS);ensureSheet_(ss,SHEETS.BRANCH_MESSAGES,BRANCH_MESSAGE_HEADERS);ensureSheet_(ss,SHEETS.LOGIN_HISTORY,LOGIN_HISTORY_HEADERS);
 const bs=ss.getSheetByName(SHEETS.BRANCHES);if(bs.getLastRow()===1)bs.appendRow(['branch_fukuoka_1','福岡第1支部','福岡県',true]);
 const as=ss.getSheetByName(SHEETS.AREAS);if(as.getLastRow()===1)as.appendRow(['area_higashi','branch_fukuoka_1','福岡市','東区',33.6452,130.4319,true]);
 const us=ss.getSheetByName(SHEETS.USERS);if(us.getLastRow()===1){const salt=uuid_(),pw=p.adminPassword||'ChangeMe123!';us.appendRow([uuid_(),p.adminLoginId||'admin',p.adminName||'管理者',hash_(pw,salt),salt,'system_admin','','',true,false,now_(),now_()]);}return{ok:true,message:'初期設定が完了しました'};}
 
-// Ver.2 → Ver.2.1 移行。現在のシートを残しつつ構造を更新します。1回だけ実行してください。
-function upgradeV21(){const ss=SpreadsheetApp.getActive();
-  migrateBranches_(ss); ensureSheet_(ss,SHEETS.AREAS,AREA_HEADERS); ensureSheet_(ss,SHEETS.CONTACTS,CONTACT_HEADERS); migrateRecords_(ss); ensureSheet_(ss,SHEETS.SESSIONS,SESSION_HEADERS);
-  const areas=ss.getSheetByName(SHEETS.AREAS);if(areas.getLastRow()===1)areas.appendRow(['area_higashi','branch_fukuoka_1','福岡市','東区',33.6452,130.4319,true]);
-  return 'あいサポ Ver.2.1 への移行が完了しました';
+// ===== Authentication =====
+function login_(p){
+  cleanupSessions_();
+  const id=String(p.loginId||'').trim(),pw=String(p.password||'');
+  if(!id||!pw){logLoginAttempt_({loginId:id,success:false});throw Error('ユーザーIDとパスワードを入力してください');}
+  const users=rows_(SHEETS.USERS);
+  const anyUser=users.find(x=>String(x.loginId)===id);
+  const u=users.find(x=>String(x.loginId)===id&&truth_(x.active));
+  if(!u||!passwordMatches_(pw,u)){logLoginAttempt_({user:anyUser,loginId:id,success:false});throw Error('ユーザーIDまたはパスワードが違います');}
+  const branch=rows_(SHEETS.BRANCHES).find(b=>String(b.branchId)===String(u.branchId))||{};
+  const token=uuid_()+uuid_(),expires=new Date(Date.now()+1000*60*60*3).toISOString();
+  SpreadsheetApp.getActive().getSheetByName(SHEETS.SESSIONS).appendRow([token,u.userId,expires,now_()]);
+  logLoginAttempt_({user:u,loginId:id,success:true});
+  return{ok:true,session:{token,userId:u.userId,loginId:u.loginId,name:u.name,role:u.role,branchId:u.branchId,areaId:u.areaId||'',branchName:branch.name||'全支部',mustChangePassword:truth_(u.mustChangePassword),expiresAt:expires}};
 }
-
-// Ver.2.1 認証拡張：Users に mustChangePassword を追加します。1回だけ実行してください。
-function upgradeV211(){const ss=SpreadsheetApp.getActive();migrateUsers_(ss);return 'あいサポ Ver.2.1.1 認証拡張が完了しました';}
-function migrateUsers_(ss){let sh=ss.getSheetByName(SHEETS.USERS);if(!sh){sh=ss.insertSheet(SHEETS.USERS);sh.appendRow(USER_HEADERS);return;}const vals=sh.getDataRange().getValues();if(!vals.length){sh.appendRow(USER_HEADERS);return;}const oldH=vals[0].map(String),rows=vals.slice(1);const mapped=rows.filter(r=>r.some(v=>v!=='')) .map(r=>{const o={};oldH.forEach((h,i)=>o[h]=r[i]);if(o.mustChangePassword===''||o.mustChangePassword===undefined)o.mustChangePassword=false;return USER_HEADERS.map(h=>o[h]??'');});sh.clearContents();sh.getRange(1,1,1,USER_HEADERS.length).setValues([USER_HEADERS]);if(mapped.length)sh.getRange(2,1,mapped.length,USER_HEADERS.length).setValues(mapped);sh.setFrozenRows(1);}
-function migrateBranches_(ss){let sh=ss.getSheetByName(SHEETS.BRANCHES);if(!sh){sh=ss.insertSheet(SHEETS.BRANCHES);sh.appendRow(BRANCH_HEADERS);return;}const vals=sh.getDataRange().getValues();if(!vals.length){sh.appendRow(BRANCH_HEADERS);return;}const oldH=vals[0].map(String),rows=vals.slice(1);const mapped=rows.filter(r=>r.some(v=>v!=='')) .map(r=>{const o={};oldH.forEach((h,i)=>o[h]=r[i]);return [o.branchId||'',o.name||'',o.prefecture||'',truth_(o.active)];});sh.clearContents();sh.getRange(1,1,1,BRANCH_HEADERS.length).setValues([BRANCH_HEADERS]);if(mapped.length)sh.getRange(2,1,mapped.length,BRANCH_HEADERS.length).setValues(mapped);sh.setFrozenRows(1);}
-function migrateRecords_(ss){let sh=ss.getSheetByName(SHEETS.RECORDS);if(!sh){sh=ss.insertSheet(SHEETS.RECORDS);sh.appendRow(RECORD_HEADERS);return;}const vals=sh.getDataRange().getValues();if(!vals.length){sh.appendRow(RECORD_HEADERS);return;}const oldH=vals[0].map(String),rows=vals.slice(1);const mapped=rows.filter(r=>r.some(v=>v!=='')) .map(r=>{const o={};oldH.forEach((h,i)=>o[h]=r[i]);if(!o.areaId&&o.branchId==='branch_fukuoka_1')o.areaId='area_higashi';return RECORD_HEADERS.map(h=>o[h]??'');});sh.clearContents();sh.getRange(1,1,1,RECORD_HEADERS.length).setValues([RECORD_HEADERS]);if(mapped.length)sh.getRange(2,1,mapped.length,RECORD_HEADERS.length).setValues(mapped);sh.setFrozenRows(1);}
+function logLoginAttempt_(x){try{const ss=SpreadsheetApp.getActive();ensureSheet_(ss,SHEETS.LOGIN_HISTORY,LOGIN_HISTORY_HEADERS);const u=x.user||{};ss.getSheetByName(SHEETS.LOGIN_HISTORY).appendRow([uuid_(),u.userId||'',x.loginId||u.loginId||'',u.name||'',!!x.success,now_()]);}catch(_){}}
 
 
-// Ver.1 の「訪問記録」を Ver.2.1.2 の Records に移行します。1回だけ実行してください。
-// 元シートは削除せず、さらにバックアップコピーも作成します。
-function migrateLegacyVisits(){
-  const ss=SpreadsheetApp.getActive();
-  const legacy=ss.getSheetByName('訪問記録');
-  if(!legacy)throw Error('「訪問記録」シートが見つかりません');
-  if(legacy.getLastRow()<2)return '移行対象の訪問記録はありません';
-
-  // バックアップは同名がなければ1回だけ作成
-  const backupName='訪問記録_backup_before_v212';
-  if(!ss.getSheetByName(backupName)) legacy.copyTo(ss).setName(backupName);
-
-  // Records を最新ヘッダーへ揃える（既存データは保持）
-  migrateRecordsToV212_(ss);
-  const target=ss.getSheetByName(SHEETS.RECORDS);
-
-  const values=legacy.getDataRange().getValues();
-  const headers=values[0].map(String);
-  const rows=values.slice(1).filter(r=>r.some(v=>v!==''));
-  const existingIds=new Set(rows_(SHEETS.RECORDS).map(r=>String(r.id)));
-  let added=0, skipped=0;
-
-  const get=(o,...keys)=>{for(const k of keys){if(k in o && o[k]!=='' && o[k]!==null && o[k]!==undefined)return o[k];}return '';};
-  const toIso=v=>{
-    if(v instanceof Date && !isNaN(v)) return v.toISOString();
-    if(!v)return '';
-    const d=new Date(v); return isNaN(d)?String(v):d.toISOString();
-  };
-  const toDateOnly=v=>{
-    if(v instanceof Date && !isNaN(v)) return Utilities.formatDate(v,Session.getScriptTimeZone()||'Asia/Tokyo','yyyy-MM-dd');
-    return String(v||'');
-  };
-  const toTime=v=>{
-    if(v instanceof Date && !isNaN(v)) return Utilities.formatDate(v,Session.getScriptTimeZone()||'Asia/Tokyo','HH:mm');
-    return String(v||'');
-  };
-
-  for(const row of rows){
-    const o={}; headers.forEach((h,i)=>o[h]=row[i]);
-    const legacyId=String(get(o,'ID','id')||uuid_());
-    if(existingIds.has(legacyId)){skipped++;continue;}
-
-    const createdAt=toIso(get(o,'登録日時','createdAt'))||now_();
-    const updatedAt=toIso(get(o,'更新日時','updatedAt'))||createdAt;
-    const rec={
-      id:legacyId,
-      branchId:'branch_fukuoka_1',
-      areaId:'area_higashi',
-      contactId:'',
-      lat:get(o,'緯度','lat'),
-      lng:get(o,'経度','lng'),
-      area:get(o,'エリア','area'),
-      address:get(o,'住所表示','address'),
-      fullAddress:get(o,'フル住所','fullAddress'),
-      personName:get(o,'名前','personName'),
-      status:get(o,'状態','status')||'unvisited',
-      type:get(o,'対象種別','type')||'戸建て',
-      household:get(o,'世帯属性','household'),
-      contact:get(o,'接触相手','contact'),
-      revisitPriority:get(o,'再訪優先度','revisitPriority'),
-      referrer:get(o,'紹介者','referrer'),
-      supporter:get(o,'支持者候補','supporter'),
-      warning:truth_(get(o,'注意','warning')),
-      warningMemo:get(o,'注意メモ','warningMemo'),
-      signboard:truth_(get(o,'看板','signboard')),
-      posterParty:get(o,'ポスター','posterParty'),
-      posterMemo:get(o,'ポスターメモ','posterMemo'),
-      memo:get(o,'メモ','memo'),
-      date:toDateOnly(get(o,'訪問日','date')),
-      startTime:toTime(get(o,'訪問開始','startTime')),
-      endTime:toTime(get(o,'訪問終了','endTime')),
-      durationMinutes:get(o,'滞在時間(分)','durationMinutes'),
-      googleMapsUrl:get(o,'GoogleマップURL','googleMapsUrl'),
-      assigneeId:'',
-      assigneeName:get(o,'担当者','assigneeName'),
-      createdAt,
-      updatedAt,
-      updatedBy:get(o,'更新者','updatedBy')||get(o,'担当者','assigneeName')||'legacy'
-    };
-    target.appendRow(RECORD_HEADERS.map(h=>rec[h]??''));
-    existingIds.add(legacyId); added++;
-  }
-  return `旧訪問記録の移行完了：${added}件追加、${skipped}件スキップ。バックアップ：${backupName}`;
-}
-
-function migrateRecordsToV212_(ss){
-  let sh=ss.getSheetByName(SHEETS.RECORDS);
-  if(!sh){sh=ss.insertSheet(SHEETS.RECORDS);sh.appendRow(RECORD_HEADERS);return;}
-  const vals=sh.getDataRange().getValues();
-  if(!vals.length){sh.appendRow(RECORD_HEADERS);return;}
-  const oldH=vals[0].map(String), rows=vals.slice(1);
-  const mapped=rows.filter(r=>r.some(v=>v!=='')) .map(r=>{
-    const o={};oldH.forEach((h,i)=>o[h]=r[i]);
-    if(!o.areaId&&o.branchId==='branch_fukuoka_1')o.areaId='area_higashi';
-    return RECORD_HEADERS.map(h=>o[h]??'');
-  });
-  sh.clearContents();
-  sh.getRange(1,1,1,RECORD_HEADERS.length).setValues([RECORD_HEADERS]);
-  if(mapped.length)sh.getRange(2,1,mapped.length,RECORD_HEADERS.length).setValues(mapped);
-  sh.setFrozenRows(1);
-}
-
-function login_(p){cleanupSessions_();const id=String(p.loginId||'').trim(),pw=String(p.password||'');if(!id||!pw)throw Error('ユーザーIDとパスワードを入力してください');const users=rows_(SHEETS.USERS);const u=users.find(x=>String(x.loginId)===id&&truth_(x.active));if(!u||!passwordMatches_(pw,u))throw Error('ユーザーIDまたはパスワードが違います');const branch=rows_(SHEETS.BRANCHES).find(b=>String(b.branchId)===String(u.branchId))||{};const token=uuid_()+uuid_();const expires=new Date(Date.now()+1000*60*60*12).toISOString();SpreadsheetApp.getActive().getSheetByName(SHEETS.SESSIONS).appendRow([token,u.userId,expires,now_()]);return{ok:true,session:{token,userId:u.userId,loginId:u.loginId,name:u.name,role:u.role,branchId:u.branchId,areaId:u.areaId||'',branchName:branch.name||'全支部',mustChangePassword:truth_(u.mustChangePassword),expiresAt:expires}};}
-
-// Ver.2.8.8: 支部間の共有連絡を追加します。1回だけ実行してください。
-function upgradeV288(){
-  const ss=SpreadsheetApp.getActive();
-  ensureSheet_(ss,SHEETS.BRANCH_MESSAGES,BRANCH_MESSAGE_HEADERS);
-  return 'あいサポ Ver.2.8.8 支部連絡の準備が完了しました';
-}
-
+// ===== Branch messages =====
 function listBranchMessages_(u,p){
   ensureSheet_(SpreadsheetApp.getActive(),SHEETS.BRANCH_MESSAGES,BRANCH_MESSAGE_HEADERS);
-  const all=rows_(SHEETS.BRANCH_MESSAGES).filter(x=>String(x.active||'').toLowerCase()!=='false');
+  const all=rows_(SHEETS.BRANCH_MESSAGES).filter(x=>String(x.active).toLowerCase()!=='false');
   let visible=all;
   if(!isGlobal_(u)){
     const bid=String(u.branchId||'');
-    visible=all.filter(x=>String(x.toBranchId)==='all'||String(x.toBranchId)===bid||String(x.fromBranchId)===bid);
+    visible=all.filter(x=>String(x.fromBranchId||'')===bid);
   }
   visible.sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
   const limit=Math.max(1,Math.min(100,Number(p.limit)||5));
   return {ok:true,messages:visible.slice(0,limit)};
+}
+
+function canManageBranchMessage_(u,item){
+  if(String(u.role)==='system_admin')return true;
+  return String(item.createdBy||'')===String(u.userId||'');
 }
 
 function saveBranchMessage_(u,m){
@@ -166,41 +71,127 @@ function saveBranchMessage_(u,m){
   if(!body)throw Error('連絡内容を入力してください');
   if(body.length>1000)throw Error('連絡内容は1000文字以内で入力してください');
   const title=String(m.title||'').trim().slice(0,80);
-  const toBranchId=String(m.toBranchId||'all');
-  const activeBranches=rows_(SHEETS.BRANCHES).filter(x=>truth_(x.active));
-  if(toBranchId!=='all'&&!activeBranches.some(b=>String(b.branchId)===toBranchId))throw Error('宛先支部が見つかりません');
+  const sh=SpreadsheetApp.getActive().getSheetByName(SHEETS.BRANCH_MESSAGES);
+  const messageId=String(m.messageId||'');
+
+  if(messageId){
+    const vals=sh.getDataRange().getValues(),headers=vals[0].map(String);
+    const idx=headers.indexOf('messageId');
+    for(let i=1;i<vals.length;i++){
+      if(String(vals[i][idx])===messageId){
+        const item={};headers.forEach((hh,j)=>item[hh]=vals[i][j]);
+        if(!canManageBranchMessage_(u,item))throw Error('この連絡は編集できません');
+        const changes={title,body};
+        headers.forEach((hh,j)=>{if(Object.prototype.hasOwnProperty.call(changes,hh))sh.getRange(i+1,j+1).setValue(changes[hh])});
+        return {ok:true,message:Object.assign(item,changes)};
+      }
+    }
+    throw Error('連絡が見つかりません');
+  }
+
   const fromBranchId=String(u.branchId||'all');
   const item={
-    messageId:uuid_(),fromBranchId,toBranchId,title,body,
-    createdBy:String(u.userId||''),createdByName:String(u.name||u.loginId||''),
-    createdAt:now_(),active:true
+    messageId:uuid_(),
+    fromBranchId,
+    toBranchId:'',
+    title,
+    body,
+    createdBy:String(u.userId||''),
+    createdByName:String(u.name||u.loginId||''),
+    createdAt:now_(),
+    active:true
   };
-  const sh=SpreadsheetApp.getActive().getSheetByName(SHEETS.BRANCH_MESSAGES);
   sh.appendRow(BRANCH_MESSAGE_HEADERS.map(h=>item[h]??''));
   return {ok:true,message:item};
 }
 
-function auth_(token){if(!token)throw Error('セッションがありません');cleanupSessions_();const s=rows_(SHEETS.SESSIONS).find(x=>x.token===token);if(!s||new Date(s.expiresAt)<=new Date())throw Error('セッションの有効期限が切れました');const u=rows_(SHEETS.USERS).find(x=>x.userId===s.userId&&truth_(x.active));if(!u)throw Error('利用者が無効です');return u;}
+function deleteBranchMessage_(u,p){
+  ensureSheet_(SpreadsheetApp.getActive(),SHEETS.BRANCH_MESSAGES,BRANCH_MESSAGE_HEADERS);
+  const id=String(p.messageId||'');if(!id)throw Error('連絡IDがありません');
+  const sh=SpreadsheetApp.getActive().getSheetByName(SHEETS.BRANCH_MESSAGES);
+  const vals=sh.getDataRange().getValues(),headers=vals[0].map(String);
+  const idIdx=headers.indexOf('messageId'),activeIdx=headers.indexOf('active');
+  for(let i=1;i<vals.length;i++){
+    if(String(vals[i][idIdx])===id){
+      const item={};headers.forEach((hh,j)=>item[hh]=vals[i][j]);
+      if(!canManageBranchMessage_(u,item))throw Error('この連絡は削除できません');
+      if(activeIdx>=0)sh.getRange(i+1,activeIdx+1).setValue(false);else sh.deleteRow(i+1);
+      return {ok:true};
+    }
+  }
+  throw Error('連絡が見つかりません');
+}
+
+function auth_(token){if(!token)throw Error('セッションがありません');cleanupSessions_();const sessions=rowsWithRow_(SHEETS.SESSIONS),s=sessions.find(x=>x.token===token);if(!s||new Date(s.expiresAt)<=new Date())throw Error('セッションの有効期限が切れました');const u=rows_(SHEETS.USERS).find(x=>x.userId===s.userId&&truth_(x.active));if(!u)throw Error('利用者が無効です');const sh=SpreadsheetApp.getActive().getSheetByName(SHEETS.SESSIONS),headers=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String),c=headers.indexOf('expiresAt')+1;if(c)sh.getRange(s._row,c).setValue(new Date(Date.now()+1000*60*60*3).toISOString());return u;}
+// ===== Bootstrap / access scope =====
 function bootstrap_(u){const branches=visibleBranches_(u),areas=visibleAreas_(u);return{ok:true,branches,areas,defaultAreaId:u.role==='member'?String(u.areaId||''):'',areaLocked:u.role==='member'};}
 function visibleBranches_(u){const all=rows_(SHEETS.BRANCHES).filter(x=>truth_(x.active));return isGlobal_(u)?all:all.filter(x=>x.branchId===u.branchId);}
 function visibleAreas_(u){let all=rows_(SHEETS.AREAS).filter(x=>truth_(x.active));if(isGlobal_(u))return all;if(u.role==='member')return all.filter(x=>String(x.areaId)===String(u.areaId)&&String(x.branchId)===String(u.branchId));return all.filter(x=>String(x.branchId)===String(u.branchId));}
 function allowedArea_(u,areaId){let requested=String(areaId||'');if(u.role==='member'){if(!u.areaId)throw Error('この利用者に活動エリアが設定されていません');requested=String(u.areaId);}if(!requested)return null;const a=rows_(SHEETS.AREAS).find(x=>String(x.areaId)===requested&&truth_(x.active));if(!a)throw Error('活動エリアが見つかりません');if(isGlobal_(u))return a;if(String(a.branchId)!==String(u.branchId))throw Error('この活動エリアにはアクセスできません');if(u.role==='member'&&String(a.areaId)!==String(u.areaId))throw Error('この活動エリアにはアクセスできません');return a;}
 
+// ===== Records / visit history =====
 function listRecords_(u,p){
   const area=allowedArea_(u,p.areaId||u.areaId||'');
   if(!area)return{ok:true,records:[]};
   let all=rows_(SHEETS.RECORDS).filter(r=>String(r.areaId)===String(area.areaId)&&String(r.active||'').toLowerCase()!=='false');
-  if(u.role==='member')all=all.map(r=>{
-    if(!['party_member','supporter'].includes(normalizeMemberType_(r.memberType)))return r;
+  all=all.map(r=>{
+    const imported=String(r.source||'')==='import';
+    if(!imported)return r;
     const locationConfirmed=!!(Number(r.lat)&&Number(r.lng));
-    // 住所・電話を一般利用者にも表示する運用に合わせ、
-    // 位置確認済みデータは地図ピン表示用の緯度経度も返す。
-    // メール等の不要な個人情報は引き続き非表示。
-    return {...r,email:'',locationConfirmed};
+    // 名簿由来データは活動に必要な最小限のみAPIへ返す。
+    return {...r,firstName:'',lastNameKana:'',firstNameKana:'',postalCode:'',birthDate:'',gender:'',occupation:'',approvedAt:'',branchParticipation:'',joinReason:'',sourceBranch:'',address:'',fullAddress:'',phone:'',email:'',locationConfirmed,personName:String(r.lastName||r.personName||'').trim()};
   });
   return{ok:true,records:all};
 }
-function saveRecord_(u,r){
+function ensureVisitHistorySheet_(){const ss=SpreadsheetApp.getActive();ensureSheet_(ss,SHEETS.VISIT_HISTORY,VISIT_HISTORY_HEADERS);const sh=ss.getSheetByName(SHEETS.VISIT_HISTORY);ensureHeadersByName_(sh,VISIT_HISTORY_HEADERS);return sh;}
+function listVisitHistory_(u,p){
+  const recordId=String(p.recordId||'');if(!recordId)return{ok:true,visits:[]};
+  const rec=rows_(SHEETS.RECORDS).find(x=>String(x.id)===recordId);if(!rec||!canAccessRecord_(u,rec))throw Error('この訪問履歴は表示できません');
+  ensureVisitHistorySheet_();
+  const visits=rows_(SHEETS.VISIT_HISTORY).filter(v=>String(v.recordId)===recordId).sort((a,b)=>String(b.visitedAt||b.createdAt||'').localeCompare(String(a.visitedAt||a.createdAt||'')));
+  return{ok:true,visits};
+}
+
+function activitySummary_(u,p){
+  const area=allowedArea_(u,p.areaId||u.areaId||'');
+  if(!area)return{ok:true,periods:{today:emptyActivityPeriod_(),week:emptyActivityPeriod_(),month:emptyActivityPeriod_()}};
+  ensureVisitHistorySheet_();
+  const visits=rows_(SHEETS.VISIT_HISTORY).filter(v=>String(v.areaId)===String(area.areaId));
+  const now=new Date(),today=localYmd_(now);
+  const weekStart=new Date(now.getFullYear(),now.getMonth(),now.getDate()-6);
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const periods={
+    today:summarizeActivityPeriod_(visits,today,today),
+    week:summarizeActivityPeriod_(visits,localYmd_(weekStart),today),
+    month:summarizeActivityPeriod_(visits,localYmd_(monthStart),today)
+  };
+  return{ok:true,periods};
+}
+function emptyActivityPeriod_(){return{visits:0,contacts:0,absent:0,intercom:0,refused:0,posted:0,contactRate:0};}
+function summarizeActivityPeriod_(visits,from,to){
+  const x=emptyActivityPeriod_();
+  visits.forEach(v=>{
+    const d=String(v.visitedAt||'').slice(0,10);if(!d||d<from||d>to)return;
+    x.visits++;
+    const r=String(v.result||'');
+    if(r==='talked'||r==='family')x.contacts++;
+    if(r==='absent')x.absent++;
+    if(r==='intercom')x.intercom++;
+    if(r==='refused')x.refused++;
+    if(truth_(v.posted))x.posted++;
+  });
+  x.contactRate=x.visits?Math.round(x.contacts/x.visits*100):0;
+  return x;
+}
+function localYmd_(d){return Utilities.formatDate(d,Session.getScriptTimeZone()||'Asia/Tokyo','yyyy-MM-dd');}
+
+function appendVisitHistory_(u,record,entry){
+  const sh=ensureVisitHistorySheet_(),now=now_();
+  const row={visitId:uuid_(),recordId:record.id,branchId:record.branchId,areaId:record.areaId,roundNo:Number(entry.roundNo||0)||'',visitedAt:String(entry.visitedAt||'').slice(0,10),result:String(entry.result||''),posted:bool_(entry.posted),nextVisitDate:String(entry.nextVisitDate||'').slice(0,10),memo:String(entry.memo||''),createdById:u.userId,createdByName:u.name,createdAt:now};
+  sh.appendRow(VISIT_HISTORY_HEADERS.map(h=>row[h]??''));
+}
+
+function saveRecord_(u,r,visitEntry){
   if(!r.fullAddress&&!r.personName)throw Error('氏名・名称または住所を入力してください');
   const area=allowedArea_(u,r.areaId);
   if(!area)throw Error('活動エリアを選択してください');
@@ -264,6 +255,7 @@ function saveRecord_(u,r){
     household:r.household||old?.household||'',
     contact:r.contact||old?.contact||'',
     revisitPriority:r.revisitPriority||'',
+    urgent:bool_(r.urgent),
     referrer:r.referrer||'',
     supporter:r.supporter||'',
     followParty:bool_(r.followParty),
@@ -277,6 +269,10 @@ function saveRecord_(u,r){
     posterRequest:bool_(r.posterRequest),
     posterReported:bool_(r.posterReported),
     posterRequestMemo:r.posterRequestMemo||'',
+    visitCount:(Number(old?.visitCount||0)||0)+(visitEntry&&visitEntry.result?1:0),
+    roundNo:visitEntry&&visitEntry.result?Number(visitEntry.roundNo||0):(Number(old?.roundNo||0)||0),
+    lastVisitResult:visitEntry&&visitEntry.result?String(visitEntry.result||''):String(old?.lastVisitResult||''),
+    nextVisitDate:visitEntry&&visitEntry.result?String(visitEntry.nextVisitDate||''):String(r.nextVisitDate!==undefined?r.nextVisitDate:(old?.nextVisitDate||'')),
     signboard:bool_(r.signboard),
     posterParty:r.posterParty||old?.posterParty||'',
     posterMemo:r.posterMemo||old?.posterMemo||'',
@@ -293,7 +289,12 @@ function saveRecord_(u,r){
     updatedBy:u.name
   };
 
+  if(item.source==='import'){
+    item.firstName='';item.lastNameKana='';item.firstNameKana='';item.postalCode='';item.birthDate='';item.gender='';item.occupation='';item.approvedAt='';item.branchParticipation='';item.joinReason='';item.sourceBranch='';item.contactId='';item.address='';item.fullAddress='';item.phone='';item.email='';item.personName=String(item.lastName||item.personName||'').trim();
+  }
+
   const row=writeRecordByHeader_(sh,old?old._row:null,item);
+  if(visitEntry&&visitEntry.result){appendVisitHistory_(u,item,visitEntry);}
   SpreadsheetApp.flush();
 
   const saved=rowsWithRow_(SHEETS.RECORDS).find(x=>x._row===row);
@@ -317,17 +318,6 @@ function deleteRecord_(u,p){
   sh.deleteRow(old._row);
   return{ok:true,deleted:true};
 }
-
-
-
-function maskContactAddress_(v){
-  const s=String(v||'').trim();
-  if(!s)return'';
-  const m=s.match(/^(.*?\d+丁目)/);
-  if(m)return m[1];
-  const n=s.search(/[0-9０-９]/);
-  return n>0?s.slice(0,n):s;
-}
 function restrictedContactForMember_(c){
   const x=Object.assign({},c);
   // 一般利用者にも現場連絡に必要な住所・電話は表示する。
@@ -336,6 +326,7 @@ function restrictedContactForMember_(c){
   x.restricted=true;x.locationHidden=true;
   return x;
 }
+// ===== Contacts =====
 function listContacts_(u,p){
   const area=allowedArea_(u,p.areaId||u.areaId||'');if(!area)return{ok:true,contacts:[]};
   let all=rows_(SHEETS.CONTACTS).filter(r=>String(r.areaId)===String(area.areaId));
@@ -369,22 +360,73 @@ function saveContact_(u,c){
 }
 function deleteContact_(u,p){const all=rowsWithRow_(SHEETS.CONTACTS),old=all.find(x=>String(x.contactId)===String(p.contactId));if(!old)return{ok:true};if(!canAccessAreaId_(u,old.areaId))throw Error('削除できません');if(rows_(SHEETS.RECORDS).some(r=>String(r.contactId)===String(old.contactId)))throw Error('訪問記録に紐づいているため削除できません');SpreadsheetApp.getActive().getSheetByName(SHEETS.CONTACTS).deleteRow(old._row);return{ok:true};}
 
-function adminData_(u){requireAdmin_(u);const branches=visibleBranches_(u),areas=visibleAreas_(u);let users=rows_(SHEETS.USERS);if(u.role==='leader')users=users.filter(x=>String(x.branchId)===String(u.branchId));const bm=Object.fromEntries(rows_(SHEETS.BRANCHES).map(b=>[b.branchId,b.name])),am=Object.fromEntries(rows_(SHEETS.AREAS).map(a=>[a.areaId,(a.city?a.city+' ':'')+a.name]));return{ok:true,branches,areas,users:users.map(x=>({userId:x.userId,loginId:x.loginId,name:x.name,role:x.role,branchId:x.branchId,areaId:x.areaId||'',branchName:bm[x.branchId]||'全支部',areaName:am[x.areaId]||(['prefecture_admin','system_admin','leader'].includes(x.role)?'選択可':'未設定'),active:truth_(x.active),mustChangePassword:truth_(x.mustChangePassword)}))};}
-function createUser_(u,x){requireAdmin_(u);if(!x.loginId||!x.name||!x.password)throw Error('必須項目を入力してください');validateNewPassword_(x.password);if(rows_(SHEETS.USERS).some(v=>String(v.loginId)===String(x.loginId)))throw Error('同じユーザーIDが登録されています');let role=x.role||'member',branchId=x.branchId||'',areaId=x.areaId||'';if(u.role==='leader'){role=role==='member'?'member':'leader';branchId=u.branchId;}if(!isGlobal_(u)&&String(branchId)!==String(u.branchId))throw Error('他支部には登録できません');if(role==='member'){const a=rows_(SHEETS.AREAS).find(a=>String(a.areaId)===String(areaId)&&truth_(a.active));if(!a||String(a.branchId)!==String(branchId))throw Error('一般利用者には活動エリアを設定してください');}else areaId='';const salt=uuid_();SpreadsheetApp.getActive().getSheetByName(SHEETS.USERS).appendRow([uuid_(),x.loginId,x.name,hash_(x.password,salt),salt,role,branchId,areaId,true,true,now_(),now_()]);return{ok:true};}
+// ===== Administration =====
+function adminData_(u){
+  requireAdmin_(u);
+  const branches=visibleBranches_(u),areas=visibleAreas_(u);
+  let users=rows_(SHEETS.USERS);if(u.role==='leader')users=users.filter(x=>String(x.branchId)===String(u.branchId));
+  const bm=Object.fromEntries(rows_(SHEETS.BRANCHES).map(b=>[b.branchId,b.name])),am=Object.fromEntries(rows_(SHEETS.AREAS).map(a=>[a.areaId,(a.city?a.city+' ':'')+a.name]));
+  ensureSheet_(SpreadsheetApp.getActive(),SHEETS.LOGIN_HISTORY,LOGIN_HISTORY_HEADERS);
+  const history=rows_(SHEETS.LOGIN_HISTORY).sort((a,b)=>String(b.loggedAt||'').localeCompare(String(a.loggedAt||'')));
+  const lastByUser={};history.forEach(h=>{if(truth_(h.success)&&h.userId&&!lastByUser[h.userId])lastByUser[h.userId]=h.loggedAt;});
+  const result={ok:true,branches,areas,users:users.map(x=>({userId:x.userId,loginId:x.loginId,name:x.name,role:x.role,branchId:x.branchId,areaId:x.areaId||'',branchName:bm[x.branchId]||'全支部',areaName:am[x.areaId]||(['prefecture_admin','system_admin','leader'].includes(x.role)?'選択可':'未設定'),active:truth_(x.active),mustChangePassword:truth_(x.mustChangePassword),lastLoginAt:lastByUser[x.userId]||''}))};
+  if(u.role==='system_admin')result.loginHistory=history.slice(0,100).map(h=>({userId:h.userId||'',loginId:h.loginId||'',name:h.name||'',success:truth_(h.success),loggedAt:h.loggedAt||''}));
+  return result;
+}
+
+
+function createUser_(u,x){
+  requireAdmin_(u);
+  x=x||{};
+  const loginId=String(x.loginId||'').trim();
+  const name=String(x.name||'').trim();
+  const password=String(x.password||'');
+  if(!loginId||!name||!password)throw Error('必須項目を入力してください');
+  validateNewPassword_(password);
+  if(rows_(SHEETS.USERS).some(v=>String(v.loginId)===loginId))throw Error('同じユーザーIDが登録されています');
+
+  let role=String(x.role||'member');
+  let branchId=String(x.branchId||'');
+  let areaId=String(x.areaId||'');
+
+  // 支部管理者は自支部の一般利用者のみ作成可能
+  if(u.role==='leader'){
+    role='member';
+    branchId=String(u.branchId||'');
+  }
+
+  if(!['member','leader'].includes(role))throw Error('登録できない権限です');
+  if(!isGlobal_(u)&&branchId!==String(u.branchId||''))throw Error('他支部には登録できません');
+
+  if(role==='member'){
+    const area=rows_(SHEETS.AREAS).find(a=>String(a.areaId)===areaId&&truth_(a.active));
+    if(!area||String(area.branchId)!==branchId)throw Error('一般利用者には所属支部の活動エリアを設定してください');
+  }else{
+    areaId='';
+  }
+
+  const salt=uuid_();
+  SpreadsheetApp.getActive().getSheetByName(SHEETS.USERS).appendRow([
+    uuid_(),loginId,name,hash_(password,salt),salt,role,branchId,areaId,true,true,now_(),now_()
+  ]);
+  return{ok:true};
+}
+
 
 function changePassword_(u,p){
   const current=String(p.currentPassword||'');
   const next=String(p.newPassword||'');
   if(!current)throw Error('現在のパスワードを入力してください');
   validateNewPassword_(next);
-  const me=rowsWithRow_(SHEETS.USERS).find(x=>String(x.userId)===String(u.userId));
-  if(!me)throw Error('利用者が見つかりません');
-  if(!passwordMatches_(current,me))throw Error('現在のパスワードが違います');
-  if(passwordMatches_(next,me))throw Error('現在と同じパスワードは使用できません');
-  setUserPassword_(me,next,false);
-  deleteSessionsForUser_(u.userId,p.token);
-  return{ok:true,mustChangePassword:false};
+
+  const target=rowsWithRow_(SHEETS.USERS).find(x=>String(x.userId)===String(u.userId));
+  if(!target)throw Error('利用者が見つかりません');
+  if(!passwordMatches_(current,target))throw Error('現在のパスワードが違います');
+
+  setUserPassword_(target,next,false);
+  return{ok:true};
 }
+
 function resetPassword_(u,p){
   requireAdmin_(u);
   const targetId=String(p.userId||''),temp=String(p.temporaryPassword||'');
@@ -392,7 +434,8 @@ function resetPassword_(u,p){
   validateNewPassword_(temp);
   const target=rowsWithRow_(SHEETS.USERS).find(x=>String(x.userId)===targetId);
   if(!target)throw Error('利用者が見つかりません');
-  if(u.role==='leader'&&String(target.branchId)!==String(u.branchId))throw Error('他支部の利用者は変更できません');
+  if(String(target.userId)===String(u.userId))throw Error('自分自身のPWリセットはできません。右上の「PW変更」を利用してください');
+  if(u.role==='leader'&&(String(target.branchId)!==String(u.branchId)||target.role!=='member'))throw Error('支部管理者は自支部の一般利用者のみPWリセットできます');
   if(target.role==='system_admin'&&u.role!=='system_admin')throw Error('この利用者は変更できません');
   setUserPassword_(target,temp,true);
   deleteSessionsForUser_(target.userId,'');
@@ -425,151 +468,61 @@ function setUserPassword_(user,newPassword,mustChange){
 }
 function deleteSessionsForUser_(userId,keepToken){const sh=SpreadsheetApp.getActive().getSheetByName(SHEETS.SESSIONS);if(!sh||sh.getLastRow()<2)return;const vals=sh.getDataRange().getValues();for(let i=vals.length-1;i>=1;i--){if(String(vals[i][1])===String(userId)&&String(vals[i][0])!==String(keepToken||''))sh.deleteRow(i+1);}}
 function canAccessAreaId_(u,areaId){try{return !!allowedArea_(u,areaId);}catch(_){return false;}}
-function setUserArea_(u,p){requireAdmin_(u);const targetId=String(p.userId||''),areaId=String(p.areaId||'');const sh=SpreadsheetApp.getActive().getSheetByName(SHEETS.USERS),all=rowsWithRow_(SHEETS.USERS),target=all.find(x=>String(x.userId)===targetId);if(!target)throw Error('利用者が見つかりません');if(target.role!=='member')throw Error('活動エリア固定は一般利用者に設定します');if(u.role==='leader'&&String(target.branchId)!==String(u.branchId))throw Error('他支部の利用者は変更できません');const a=rows_(SHEETS.AREAS).find(x=>String(x.areaId)===areaId&&truth_(x.active));if(!a||String(a.branchId)!==String(target.branchId))throw Error('所属支部の活動エリアを選択してください');if(!isGlobal_(u)&&String(a.branchId)!==String(u.branchId))throw Error('この活動エリアは設定できません');const headers=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String),c=headers.indexOf('areaId')+1;if(!c)throw Error('areaId列がありません。upgradeV22を実行してください');sh.getRange(target._row,c).setValue(areaId);return{ok:true};}
+function updateUser_(u,p){requireAdmin_(u);const targetId=String(p.userId||''),x=p.user||{};const sh=SpreadsheetApp.getActive().getSheetByName(SHEETS.USERS),target=rowsWithRow_(SHEETS.USERS).find(v=>String(v.userId)===targetId);if(!target)throw Error('利用者が見つかりません');if(target.role==='system_admin')throw Error('システム管理者はこの画面では編集できません');if(u.role==='leader'&&(String(target.branchId)!==String(u.branchId)||target.role!=='member'))throw Error('支部管理者は自支部の一般利用者のみ変更できます');let name=String(x.name||'').trim(),role=String(x.role||target.role),branchId=String(x.branchId||target.branchId),areaId=String(x.areaId||'');if(!name)throw Error('表示名を入力してください');if(u.role==='leader'){role='member';branchId=String(u.branchId)}if(!['member','leader'].includes(role))throw Error('変更できない権限です');if(!isGlobal_(u)&&String(branchId)!==String(u.branchId))throw Error('他支部には変更できません');if(role==='member'){const a=rows_(SHEETS.AREAS).find(a=>String(a.areaId)===areaId&&truth_(a.active));if(!a||String(a.branchId)!==branchId)throw Error('所属支部の活動エリアを選択してください')}else areaId='';const h=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String);[['name',name],['role',role],['branchId',branchId],['areaId',areaId],['updatedAt',now_()]].forEach(([k,v])=>{const c=h.indexOf(k)+1;if(c)sh.getRange(target._row,c).setValue(v)});return{ok:true};}
+function setUserArea_(u,p){requireAdmin_(u);const targetId=String(p.userId||''),areaId=String(p.areaId||'');const sh=SpreadsheetApp.getActive().getSheetByName(SHEETS.USERS),all=rowsWithRow_(SHEETS.USERS),target=all.find(x=>String(x.userId)===targetId);if(!target)throw Error('利用者が見つかりません');if(target.role!=='member')throw Error('活動エリア固定は一般利用者に設定します');if(u.role==='leader'&&String(target.branchId)!==String(u.branchId))throw Error('他支部の利用者は変更できません');const a=rows_(SHEETS.AREAS).find(x=>String(x.areaId)===areaId&&truth_(x.active));if(!a||String(a.branchId)!==String(target.branchId))throw Error('所属支部の活動エリアを選択してください');if(!isGlobal_(u)&&String(a.branchId)!==String(u.branchId))throw Error('この活動エリアは設定できません');const headers=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String),c=headers.indexOf('areaId')+1;if(!c)throw Error('UsersシートにareaId列がありません。現行ヘッダーを確認してください');sh.getRange(target._row,c).setValue(areaId);return{ok:true};}
+function setUserActive_(u,p){requireAdmin_(u);const targetId=String(p.userId||''),active=!!p.active;const sh=SpreadsheetApp.getActive().getSheetByName(SHEETS.USERS),target=rowsWithRow_(SHEETS.USERS).find(x=>String(x.userId)===targetId);if(!target)throw Error('利用者が見つかりません');if(String(target.userId)===String(u.userId)&&!active)throw Error('自分自身は無効化できません');if(target.role==='system_admin')throw Error('システム管理者は無効化できません');if(u.role==='leader'&&(String(target.branchId)!==String(u.branchId)||target.role!=='member'))throw Error('支部管理者は自支部の一般利用者のみ変更できます');const h=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String),c=h.indexOf('active')+1,cu=h.indexOf('updatedAt')+1;sh.getRange(target._row,c).setValue(active);if(cu)sh.getRange(target._row,cu).setValue(now_());if(!active)deleteSessionsForUser_(target.userId,'');return{ok:true};}
+function deleteUser_(u,p){requireSystemAdmin_(u);const targetId=String(p.userId||''),sh=SpreadsheetApp.getActive().getSheetByName(SHEETS.USERS),target=rowsWithRow_(SHEETS.USERS).find(x=>String(x.userId)===targetId);if(!target)throw Error('利用者が見つかりません');if(String(target.userId)===String(u.userId)||target.role==='system_admin')throw Error('この利用者は削除できません');deleteSessionsForUser_(target.userId,'');sh.deleteRow(target._row);return{ok:true};}
+function cleanImportedPersonName_(v){
+  return String(v||'').trim()
+    .replace(/^(party_member|party|supporter|general|unknown)\s*[|｜:：\-–—]?\s*/i,'')
+    .trim();
+}
 function normalizeMemberType_(v){const s=String(v||'').trim();if(['party_member','supporter','general','unknown'].includes(s))return s;if(/党員/.test(s))return'party_member';if(/サポ|support/i.test(s))return'supporter';if(/一般/.test(s))return'general';return'unknown';}
+// ===== Privacy-minimized roster import =====
 function importContacts_(u,p){
-  requireSystemAdmin_(u);
+  requireAdmin_(u);
   const defaultArea=allowedArea_(u,p.areaId||'');
   if(!defaultArea)throw Error('取込時の基準エリアを選択してください');
   const input=Array.isArray(p.contacts)?p.contacts:[];
   if(!input.length)throw Error('取り込む名簿がありません');
   if(input.length>200)throw Error('1回の取込は200件までです');
-
-  const ss=SpreadsheetApp.getActive();
-  const sh=ss.getSheetByName(SHEETS.RECORDS);
-  ensureHeadersByName_(sh,RECORD_HEADERS);
-  const existing=rowsWithRow_(SHEETS.RECORDS);
-  const allAreas=visibleAreas_(u).filter(a=>truth_(a.active));
-  const branches=rows_(SHEETS.BRANCHES);
-  const branchNameById=Object.fromEntries(branches.map(b=>[String(b.branchId),String(b.name||'')]));
+  const ss=SpreadsheetApp.getActive(),sh=ss.getSheetByName(SHEETS.RECORDS);ensureHeadersByName_(sh,RECORD_HEADERS);
+  const existing=rowsWithRow_(SHEETS.RECORDS),allActiveAreas=rows_(SHEETS.AREAS).filter(a=>truth_(a.active)),allAreas=visibleAreas_(u).filter(a=>truth_(a.active)),branches=rows_(SHEETS.BRANCHES),branchNameById=Object.fromEntries(branches.map(b=>[String(b.branchId),String(b.name||'')]));
   const geocoder=Maps.newGeocoder().setLanguage('ja').setRegion('jp');
-
-  let added=0,updated=0,skipped=0,unmatched=0,geocoded=0,geocodeFailed=0;
-
-  function detectArea_(address,sourceBranch){
-    const a=String(address||'').replace(/\s+/g,'');
-    const sb=String(sourceBranch||'').trim();
-    let candidates=allAreas.filter(area=>{
-      const city=String(area.city||'').replace(/\s+/g,'');
-      const name=String(area.name||'').replace(/\s+/g,'');
-      if(!name||!a.includes(name))return false;
-      if(city&&!a.includes(city))return false;
-      if(sb){
-        const branchName=branchNameById[String(area.branchId)]||'';
-        if(branchName&&branchName!==sb)return false;
-      }
-      return true;
-    });
-    if(candidates.length===1)return candidates[0];
-    if(!candidates.length){
-      candidates=allAreas.filter(area=>{
-        const city=String(area.city||'').replace(/\s+/g,'');
-        const name=String(area.name||'').replace(/\s+/g,'');
-        return !!name&&a.includes(name)&&(!city||a.includes(city));
-      });
-      if(candidates.length===1)return candidates[0];
-    }
-    const defaultName=String(defaultArea.name||'').replace(/\s+/g,'');
-    if(!a||(defaultName&&a.includes(defaultName)))return defaultArea;
-    return null;
-  }
-
-  function findExisting_(raw,name,address,phone,targetAreaId){
-    const partyId=String(raw.partyId||'').trim();
-    if(partyId){
-      const hit=existing.find(x=>String(x.partyId||'').trim()===partyId);
-      if(hit)return hit;
-    }
-    const n=String(name||'').trim().toLowerCase();
-    const a=String(address||'').trim().toLowerCase();
-    const ph=String(phone||'').replace(/\D/g,'');
-    return existing.find(x=>{
-      if(targetAreaId&&String(x.areaId)!==String(targetAreaId))return false;
-      if(n&&a&&String(x.personName||'').trim().toLowerCase()===n&&String(x.fullAddress||'').trim().toLowerCase()===a)return true;
-      if(n&&ph&&String(x.personName||'').trim().toLowerCase()===n&&String(x.phone||'').replace(/\D/g,'')===ph)return true;
-      return false;
-    });
-  }
-
+  let added=0,skipped=0,duplicateSkipped=0,geocoded=0;const failed=[];
+  function detectArea_(address,sourceBranch){const a=String(address||'').replace(/\s+/g,''),sb=String(sourceBranch||'').trim();let candidates=allAreas.filter(area=>{const city=String(area.city||'').replace(/\s+/g,''),name=String(area.name||'').replace(/\s+/g,'');if(!name||!a.includes(name))return false;if(city&&!a.includes(city))return false;if(sb){const branchName=branchNameById[String(area.branchId)]||'';if(branchName&&branchName!==sb)return false;}return true;});if(candidates.length===1)return candidates[0];if(!candidates.length){candidates=allAreas.filter(area=>{const city=String(area.city||'').replace(/\s+/g,''),name=String(area.name||'').replace(/\s+/g,'');return !!name&&a.includes(name)&&(!city||a.includes(city));});if(candidates.length===1)return candidates[0];}const defaultName=String(defaultArea.name||'').replace(/\s+/g,'');if(!a||(defaultName&&a.includes(defaultName)))return defaultArea;return null;}
+  const existingPartyIds=new Set(existing.map(x=>String(x.partyId||'').trim()).filter(Boolean));
   for(const raw of input){
-    const lastName=String(raw.lastName||'').trim();
-    const firstName=String(raw.firstName||'').trim();
-    const name=String(raw.name||[lastName,firstName].filter(Boolean).join(' ')).trim();
-    const address=String(raw.fullAddress||'').trim();
-    const phone=String(raw.phone||'').trim();
-    if(!name&&!address){skipped++;continue;}
-
-    const detected=detectArea_(address,raw.sourceBranch);
-    // 住所があるのに登録済み活動エリアへ判定できない場合は、
-    // 現在選択中エリアへ誤登録せず取り込み対象外にする。
-    // 住所自体が空の場合のみ、選択中エリアの名簿として残す。
-    if(address&&!detected){unmatched++;skipped++;continue;}
-    const targetArea=detected||defaultArea;
-
-    const old=findExisting_(raw,name,address,phone,targetArea.areaId);
-    let lat=Number(raw.lat)||Number(old?.lat)||'',lng=Number(raw.lng)||Number(old?.lng)||'';
-    if(address&&(!lat||!lng)){
-      try{
-        const geo=geocoder.geocode(address);
-        const result=geo&&geo.results&&geo.results[0];
-        if(result&&result.geometry&&result.geometry.location){
-          lat=Number(result.geometry.location.lat)||'';
-          lng=Number(result.geometry.location.lng)||'';
-          if(lat&&lng)geocoded++;else geocodeFailed++;
-        }else geocodeFailed++;
-      }catch(e){ geocodeFailed++; }
+    const partyId=String(raw.partyId||'').trim(),lastName=cleanImportedPersonName_(raw.lastName),address=String(raw.fullAddress||'').trim(),memberType=normalizeMemberType_(raw.memberType);
+    if(partyId&&existingPartyIds.has(partyId)){duplicateSkipped++;skipped++;continue;}
+    if(!partyId||!lastName||!address){skipped++;failed.push({partyId,lastName,address,memberType,category:'invalid',reason:!partyId?'党員IDなし':!lastName?'苗字なし':'住所なし'});continue;}
+    const targetArea=detectArea_(address,raw.sourceBranch);if(!targetArea){
+      const compact=address.replace(/\s+/g,'');
+      const outside=allActiveAreas.find(area=>{const city=String(area.city||'').replace(/\s+/g,''),name=String(area.name||'').replace(/\s+/g,'');return !!name&&compact.includes(name)&&(!city||compact.includes(city));});
+      skipped++;failed.push({partyId,lastName,address,memberType,category:outside?'outside_area':'invalid',reason:outside?'担当支部の活動エリア外です':'活動エリアを判定できません'});continue;
     }
-
-    const now=now_();
-    const item={
-      id:old?old.id:uuid_(),branchId:old?old.branchId:targetArea.branchId,areaId:targetArea.areaId,
-      source:'import',memberType:normalizeMemberType_(raw.memberType),
-      partyId:String(raw.partyId||old?.partyId||'').trim(),
-      lastName,lastNameKana:String(raw.lastNameKana||'').trim(),firstName,firstNameKana:String(raw.firstNameKana||'').trim(),
-      postalCode:String(raw.postalCode||'').trim(),birthDate:raw.birthDate||'',gender:String(raw.gender||'').trim(),
-      occupation:String(raw.occupation||'').trim(),approvedAt:raw.approvedAt||'',branchParticipation:String(raw.branchParticipation||'').trim(),
-      joinReason:String(raw.joinReason||'').trim(),sourceBranch:String(raw.sourceBranch||'').trim(),contactId:'',
-      lat,lng,area:old?.area||'',address:old?.address||'',fullAddress:address||old?.fullAddress||'',personName:name||old?.personName||'名称未設定',
-      phone,email:String(raw.email||'').trim(),status:old?.status||'unvisited',type:old?.type||'戸建て',
-      household:old?.household||'',contact:old?.contact||'',revisitPriority:old?.revisitPriority||'',
-      referrer:String(raw.referrer||old?.referrer||'').trim(),supporter:String(raw.supporter||old?.supporter||'').trim(),
-      warning:bool_(old?.warning),warningReason:old?.warningReason||'',warningMemo:old?.warningMemo||'',
-      signboard:bool_(old?.signboard),posterParty:old?.posterParty||'',posterMemo:old?.posterMemo||'',
-      memo:String(raw.memo||old?.memo||'').trim(),date:old?.date||'',startTime:old?.startTime||'',endTime:old?.endTime||'',
-      durationMinutes:old?.durationMinutes||'',googleMapsUrl:old?.googleMapsUrl||'',
-      assigneeId:old?.assigneeId||u.userId,assigneeName:old?.assigneeName||u.name,
-      createdAt:old?.createdAt||now,updatedAt:now,updatedBy:u.name
-    };
-    if(old){
-      writeRecordByHeader_(sh,old._row,item); updated++; Object.assign(old,item);
-    }else{
-      const row=writeRecordByHeader_(sh,null,item); added++; existing.push({...item,_row:row});
-    }
+    let lat='',lng='';try{const geo=geocoder.geocode(address),result=geo&&geo.results&&geo.results[0];if(result&&result.geometry&&result.geometry.location){lat=Number(result.geometry.location.lat)||'';lng=Number(result.geometry.location.lng)||'';}}catch(_){}
+    if(!lat||!lng){skipped++;failed.push({partyId,lastName,address,memberType,areaId:targetArea.areaId,category:'location',reason:'住所を位置情報へ変換できません'});continue;}
+    geocoded++;const now=now_(),item={id:uuid_(),branchId:targetArea.branchId,areaId:targetArea.areaId,active:true,inactiveAt:'',inactiveBy:'',inactiveReason:'',source:'import',memberType,partyId,lastName,firstName:'',lastNameKana:'',firstNameKana:'',postalCode:'',birthDate:'',gender:'',occupation:'',approvedAt:'',branchParticipation:'',joinReason:'',sourceBranch:'',contactId:'',lat,lng,area:'',address:'',fullAddress:'',personName:lastName,phone:'',email:'',status:'unvisited',type:'戸建て',household:'',contact:'',revisitPriority:'',referrer:'',supporter:['party_member','supporter'].includes(memberType)?'B':'',followParty:false,followSupporter:false,followDetails:false,followDone:false,followMemo:'',warning:false,warningReason:'',warningMemo:'',posterRequest:false,posterReported:false,posterRequestMemo:'',visitCount:0,signboard:false,posterParty:'',posterMemo:'',memo:'',date:'',startTime:'',endTime:'',durationMinutes:'',googleMapsUrl:'',assigneeId:u.userId,assigneeName:u.name,createdAt:now,updatedAt:now,updatedBy:u.name};
+    writeRecordByHeader_(sh,null,item);added++;if(partyId)existingPartyIds.add(partyId);
   }
-  return{ok:true,added,updated,skipped,unmatched,geocoded,geocodeFailed};
+  return{ok:true,added,skipped,duplicateSkipped,geocoded,failed};
 }
+function saveImportedLocation_(u,p){
+  requireAdmin_(u);const area=allowedArea_(u,p.areaId||'');if(!area)throw Error('活動エリアを選択してください');const partyId=String(p.partyId||'').trim(),lastName=cleanImportedPersonName_(p.lastName),memberType=normalizeMemberType_(p.memberType),lat=Number(p.lat),lng=Number(p.lng);if(!partyId||!lastName)throw Error('党員IDと苗字が必要です');if(!Number.isFinite(lat)||!Number.isFinite(lng)||!lat||!lng)throw Error('地図上の位置を指定してください');if(rows_(SHEETS.RECORDS).some(x=>String(x.partyId||'').trim()===partyId&&String(x.active||'').toLowerCase()!=='false'))throw Error('同じ党員IDは既に登録されています');const sh=SpreadsheetApp.getActive().getSheetByName(SHEETS.RECORDS);ensureHeadersByName_(sh,RECORD_HEADERS);const now=now_(),item={id:uuid_(),branchId:area.branchId,areaId:area.areaId,active:true,inactiveAt:'',inactiveBy:'',inactiveReason:'',source:'import',memberType,partyId,lastName,firstName:'',lastNameKana:'',firstNameKana:'',postalCode:'',birthDate:'',gender:'',occupation:'',approvedAt:'',branchParticipation:'',joinReason:'',sourceBranch:'',contactId:'',lat,lng,area:'',address:'',fullAddress:'',personName:lastName,phone:'',email:'',status:'unvisited',type:'戸建て',household:'',contact:'',revisitPriority:'',referrer:'',supporter:['party_member','supporter'].includes(memberType)?'B':'',followParty:false,followSupporter:false,followDetails:false,followDone:false,followMemo:'',warning:false,warningReason:'',warningMemo:'',posterRequest:false,posterReported:false,posterRequestMemo:'',visitCount:0,signboard:false,posterParty:'',posterMemo:'',memo:'',date:'',startTime:'',endTime:'',durationMinutes:'',googleMapsUrl:'',assigneeId:u.userId,assigneeName:u.name,createdAt:now,updatedAt:now,updatedBy:u.name};writeRecordByHeader_(sh,null,item);return{ok:true};
+}
+
 function createArea_(u,x){requireAdmin_(u);let branchId=x.branchId||u.branchId;if(u.role==='leader')branchId=u.branchId;if(!branchId)throw Error('支部を選択してください');if(!x.name)throw Error('エリア名を入力してください');const areaId=x.areaId||('area_'+uuid_().slice(0,12));SpreadsheetApp.getActive().getSheetByName(SHEETS.AREAS).appendRow([areaId,branchId,x.city||'',x.name,Number(x.mapLat)||'',Number(x.mapLng)||'',true]);return{ok:true,areaId};}
+function deleteArea_(u,p){requireSystemAdmin_(u);const areaId=String(p.areaId||''),sh=SpreadsheetApp.getActive().getSheetByName(SHEETS.AREAS),target=rowsWithRow_(SHEETS.AREAS).find(x=>String(x.areaId)===areaId);if(!target)throw Error('活動エリアが見つかりません');if(rows_(SHEETS.USERS).some(x=>truth_(x.active)&&String(x.areaId)===areaId))throw Error('利用中のユーザーがいるため削除できません');if(rows_(SHEETS.RECORDS).some(x=>String(x.areaId)===areaId&&String(x.active||'true').toLowerCase()!=='false'))throw Error('訪問先データがあるため削除できません');sh.deleteRow(target._row);return{ok:true};}
 function requireAdmin_(u){if(!['leader','prefecture_admin','system_admin'].includes(u.role))throw Error('管理権限がありません');}
 function requireSystemAdmin_(u){if(u.role!=='system_admin')throw Error('システム管理者権限が必要です');}
 function isGlobal_(u){return['prefecture_admin','system_admin'].includes(u.role);}
-function canAccessBranch_(u,branchId){return isGlobal_(u)||String(branchId)===String(u.branchId);}
 function canAccessRecord_(u,r){return canAccessAreaId_(u,r.areaId);}
 
 function bool_(v){return v===true||v===1||String(v||'').toLowerCase()==='true';}
-function dateKey_(v){
-  if(v===null||v===undefined||v==='')return '';
-  if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v)){
-    return Utilities.formatDate(v,Session.getScriptTimeZone()||'Asia/Tokyo','yyyy-MM-dd');
-  }
-  const s=String(v).trim();
-  const m=s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-  if(m)return m[1]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[3]).padStart(2,'0');
-  const d=new Date(s);
-  if(!isNaN(d))return Utilities.formatDate(d,Session.getScriptTimeZone()||'Asia/Tokyo','yyyy-MM-dd');
-  return s;
-}
 
 
+// ===== Shared utilities =====
 function ensureHeadersByName_(sh,requiredHeaders){
   if(sh.getLastRow()===0){
     sh.getRange(1,1,1,requiredHeaders.length).setValues([requiredHeaders]);
@@ -603,7 +556,7 @@ function writeRecordByHeader_(sh,rowNumber,item){
   // 電話番号・メール・ID等がGoogle Sheetsに自動変換されないよう文字列列を明示
   ['id','branchId','areaId','source','memberType','partyId','lastName','firstName','lastNameKana','firstNameKana','postalCode','sourceBranch','contactId','personName','phone','email','status','type',
    'household','contact','revisitPriority','referrer','supporter','followMemo','warningReason',
-   'warningMemo','posterParty','posterMemo','memo','googleMapsUrl','assigneeId',
+   'warningMemo','lastVisitResult','posterParty','posterMemo','memo','googleMapsUrl','assigneeId',
    'assigneeName','updatedBy'].forEach(h=>{
       const c=headers.indexOf(h);
       if(c>=0)sh.getRange(rowNumber,c+1).setNumberFormat('@');
@@ -612,15 +565,6 @@ function writeRecordByHeader_(sh,rowNumber,item){
   return rowNumber;
 }
 
-function backupRecordsV235_(){
-  const ss=SpreadsheetApp.getActive();
-  const src=ss.getSheetByName(SHEETS.RECORDS);
-  if(!src)return '';
-  let name='Records_backup_before_v235',n=2;
-  while(ss.getSheetByName(name))name='Records_backup_before_v235_'+(n++);
-  src.copyTo(ss).setName(name);
-  return name;
-}
 
 function ensureSheet_(ss,name,headers){let sh=ss.getSheetByName(name);if(!sh)sh=ss.insertSheet(name);if(sh.getLastRow()===0)sh.appendRow(headers);sh.setFrozenRows(1);}
 function rows_(name){return rowsWithRow_(name).map(x=>{delete x._row;return x;});}
@@ -629,471 +573,6 @@ function cleanupSessions_(){const sh=SpreadsheetApp.getActive().getSheetByName(S
 function hash_(password,salt){const bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(salt)+'|'+String(password),Utilities.Charset.UTF_8);return bytes.map(b=>(b+256)%256).map(b=>('0'+b.toString(16)).slice(-2)).join('');}
 function uuid_(){return Utilities.getUuid().replace(/-/g,'');}function now_(){return new Date().toISOString();}function truth_(v){return v===true||String(v).toLowerCase()==='true'||v===1;}function json_(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);}
 
-// Ver.2.2: ユーザー固定エリア・名簿拡張。1回だけ実行してください。
-function upgradeV22(){
-  const ss=SpreadsheetApp.getActive();
-  migrateUsersV22_(ss);
-  migrateContactsV22_(ss);
-  return 'あいサポ Ver.2.2 への移行が完了しました';
-}
-function migrateUsersV22_(ss){
-  let sh=ss.getSheetByName(SHEETS.USERS);
-  if(!sh){sh=ss.insertSheet(SHEETS.USERS);sh.appendRow(USER_HEADERS);return;}
-  const vals=sh.getDataRange().getValues();
-  if(!vals.length){sh.appendRow(USER_HEADERS);return;}
-  const oldH=vals[0].map(String), rows=vals.slice(1), allAreas=rowsFromSheet_(ss,SHEETS.AREAS);
-  const mapped=rows.filter(r=>r.some(v=>v!=='')) .map(r=>{
-    const o={};oldH.forEach((h,i)=>o[h]=r[i]);
-    if((o.role==='member')&&!o.areaId&&o.branchId){
-      const aa=allAreas.filter(a=>String(a.branchId)===String(o.branchId)&&truth_(a.active));
-      if(aa.length===1)o.areaId=aa[0].areaId;
-    }
-    return USER_HEADERS.map(h=>o[h]??'');
-  });
-  sh.clearContents();sh.getRange(1,1,1,USER_HEADERS.length).setValues([USER_HEADERS]);
-  if(mapped.length)sh.getRange(2,1,mapped.length,USER_HEADERS.length).setValues(mapped);sh.setFrozenRows(1);
-}
-function migrateContactsV22_(ss){
-  let sh=ss.getSheetByName(SHEETS.CONTACTS);
-  if(!sh){sh=ss.insertSheet(SHEETS.CONTACTS);sh.appendRow(CONTACT_HEADERS);return;}
-  const vals=sh.getDataRange().getValues();
-  if(!vals.length){sh.appendRow(CONTACT_HEADERS);return;}
-  const oldH=vals[0].map(String),rows=vals.slice(1);
-  const mapped=rows.filter(r=>r.some(v=>v!=='')) .map(r=>{const o={};oldH.forEach((h,i)=>o[h]=r[i]);return CONTACT_HEADERS.map(h=>o[h]??'');});
-  sh.clearContents();sh.getRange(1,1,1,CONTACT_HEADERS.length).setValues([CONTACT_HEADERS]);
-  if(mapped.length)sh.getRange(2,1,mapped.length,CONTACT_HEADERS.length).setValues(mapped);sh.setFrozenRows(1);
-}
-
-// Ver.2.3: 党員名簿正式項目・通常訪問先の電話/メールを追加。1回だけ実行してください。
-function upgradeV23(){
-  const ss=SpreadsheetApp.getActive();
-  migrateContactsV23_(ss);
-  migrateRecordsV23_(ss);
-  return 'あいサポ Ver.2.3 への移行が完了しました';
-}
-function migrateContactsV23_(ss){
-  let sh=ss.getSheetByName(SHEETS.CONTACTS);
-  if(!sh){sh=ss.insertSheet(SHEETS.CONTACTS);sh.appendRow(CONTACT_HEADERS);return;}
-  const vals=sh.getDataRange().getValues();if(!vals.length){sh.appendRow(CONTACT_HEADERS);return;}
-  const oldH=vals[0].map(String),rows=vals.slice(1);
-  const mapped=rows.filter(r=>r.some(v=>v!=='')) .map(r=>{
-    const o={};oldH.forEach((h,i)=>o[h]=r[i]);
-    if(!o.name)o.name=[o.lastName,o.firstName].filter(Boolean).join(' ');
-    return CONTACT_HEADERS.map(h=>o[h]??'');
-  });
-  sh.clearContents();sh.getRange(1,1,1,CONTACT_HEADERS.length).setValues([CONTACT_HEADERS]);
-  if(mapped.length)sh.getRange(2,1,mapped.length,CONTACT_HEADERS.length).setValues(mapped);sh.setFrozenRows(1);
-}
-function migrateRecordsV23_(ss){
-  let sh=ss.getSheetByName(SHEETS.RECORDS);
-  if(!sh){sh=ss.insertSheet(SHEETS.RECORDS);sh.appendRow(RECORD_HEADERS);return;}
-  const vals=sh.getDataRange().getValues();if(!vals.length){sh.appendRow(RECORD_HEADERS);return;}
-  const oldH=vals[0].map(String),rows=vals.slice(1);
-  const mapped=rows.filter(r=>r.some(v=>v!=='')) .map(r=>{const o={};oldH.forEach((h,i)=>o[h]=r[i]);return RECORD_HEADERS.map(h=>o[h]??'');});
-  sh.clearContents();sh.getRange(1,1,1,RECORD_HEADERS.length).setValues([RECORD_HEADERS]);
-  if(mapped.length)sh.getRange(2,1,mapped.length,RECORD_HEADERS.length).setValues(mapped);sh.setFrozenRows(1);
-}
-
-function rowsFromSheet_(ss,name){const sh=ss.getSheetByName(name);if(!sh||sh.getLastRow()<2)return[];const v=sh.getDataRange().getValues(),h=v.shift().map(String);return v.map(row=>{const o={};h.forEach((k,j)=>o[k]=row[j]);return o;});}
 
 
-function repairRecordsV235(){
-  const ss=SpreadsheetApp.getActive();
-  const sh=ss.getSheetByName(SHEETS.RECORDS);
-  if(!sh)throw Error('Recordsシートが見つかりません');
-  const backup=backupRecordsV235_();
-
-  ensureHeadersByName_(sh,RECORD_HEADERS);
-  const values=sh.getDataRange().getValues();
-  const headers=values[0].map(String);
-  const col=n=>headers.indexOf(n);
-  const statusVals=['unvisited','visited','good','absent','revisit','refused','未訪問','訪問済','訪問済み','手応えあり','不在','要再訪','断られた'];
-  const typeVals=['戸建て','集合住宅','事業所','その他'];
-  const supporterVals=['','◎有力','○可能性あり','△様子見','×なし'];
-
-  let fixed=0;
-  for(let i=1;i<values.length;i++){
-    const row=values[i];
-    let changed=false;
-    const get=n=>{const c=col(n);return c>=0?(row[c]??''):'';};
-    const set=(n,v)=>{const c=col(n);if(c>=0)row[c]=v;};
-
-    // phone/status, email/type shifted rows
-    const phone=String(get('phone')).trim(), email=String(get('email')).trim();
-    if(statusVals.includes(phone)&&typeVals.includes(email)){
-      set('status',phone);
-      set('type',email);
-      set('phone','');
-      set('email','');
-      changed=true;
-    }
-
-    // referrer TRUE/FALSE + supporter free text = warning + warning memo
-    const ref=String(get('referrer')).trim(), sup=String(get('supporter')).trim();
-    if(['TRUE','FALSE','true','false','1','0'].includes(ref) && !supporterVals.includes(sup)){
-      set('warning',['TRUE','true','1'].includes(ref));
-      if(!String(get('warningMemo')).trim())set('warningMemo',sup);
-      set('referrer','');
-      set('supporter','');
-      changed=true;
-    }
-
-    if(changed){
-      sh.getRange(i+1,1,1,headers.length).setValues([row]);
-      fixed++;
-    }
-  }
-  SpreadsheetApp.flush();
-  return '修復完了: '+fixed+'件 / バックアップ: '+backup;
-}
-
-function upgradeV235(){
-  const ss=SpreadsheetApp.getActive();
-  const sh=ss.getSheetByName(SHEETS.RECORDS);
-  ensureHeadersByName_(sh,RECORD_HEADERS);
-  return 'あいサポ Ver.2.3.5 保存方式へ移行しました';
-}
-
-
-function upgradeV237(){
-  const ss=SpreadsheetApp.getActive();
-  const sh=ss.getSheetByName(SHEETS.RECORDS);
-  if(!sh)throw Error('Recordsシートが見つかりません');
-
-  let backup='Records_backup_before_v237',n=2;
-  while(ss.getSheetByName(backup))backup='Records_backup_before_v237_'+(n++);
-  sh.copyTo(ss).setName(backup);
-
-  const vals=sh.getDataRange().getValues();
-  if(!vals.length){
-    sh.getRange(1,1,1,RECORD_HEADERS.length).setValues([RECORD_HEADERS]);
-    sh.setFrozenRows(1);
-    return 'Ver.2.3.7へ移行しました / バックアップ: '+backup;
-  }
-
-  const oldH=vals[0].map(v=>String(v).trim());
-  const data=vals.slice(1).filter(r=>r.some(v=>v!==''));
-  const mapped=data.map(row=>{
-    const o={};
-    oldH.forEach((h,i)=>{if(h)o[h]=row[i]});
-    return RECORD_HEADERS.map(h=>o[h]??'');
-  });
-
-  sh.clearContents();
-  sh.getRange(1,1,1,RECORD_HEADERS.length).setValues([RECORD_HEADERS]);
-  if(mapped.length)sh.getRange(2,1,mapped.length,RECORD_HEADERS.length).setValues(mapped);
-  sh.setFrozenRows(1);
-  SpreadsheetApp.flush();
-  return 'Ver.2.3.7へ移行しました: '+mapped.length+'件 / バックアップ: '+backup;
-}
-
-
-function upgradeV244(){
-  const ss=SpreadsheetApp.getActive();
-  ensureSheet_(ss,SHEETS.RECORDS,RECORD_HEADERS);
-  ensureHeadersByName_(ss.getSheetByName(SHEETS.RECORDS),RECORD_HEADERS);
-  const old=rows_(SHEETS.CONTACTS);
-  const existing=rows_(SHEETS.RECORDS);
-  const key=x=>String(x.partyId||'').trim()||[x.personName||x.name,x.fullAddress,x.phone].map(v=>String(v||'').trim().toLowerCase()).join('|');
-  const seen=new Set(existing.map(key));
-  const sh=ss.getSheetByName(SHEETS.RECORDS);
-  const out=[];
-  old.forEach(c=>{
-    const item={id:uuid_(),branchId:c.branchId||'',areaId:c.areaId||'',source:'import',memberType:normalizeMemberType_(c.memberType),
-      partyId:c.partyId||'',lastName:c.lastName||'',firstName:c.firstName||'',lastNameKana:c.lastNameKana||'',firstNameKana:c.firstNameKana||'',
-      postalCode:c.postalCode||'',birthDate:c.birthDate||'',gender:c.gender||'',occupation:c.occupation||'',approvedAt:c.approvedAt||'',
-      branchParticipation:c.branchParticipation||'',joinReason:c.joinReason||'',sourceBranch:c.sourceBranch||'',contactId:'',
-      lat:c.lat||'',lng:c.lng||'',area:'',address:'',fullAddress:c.fullAddress||'',personName:c.name||'',phone:c.phone||'',email:c.email||'',
-      status:'unvisited',type:'戸建て',household:'',contact:'',revisitPriority:'',referrer:c.referrer||'',supporter:c.supporter||'',
-      warning:false,warningReason:'',warningMemo:'',signboard:'',posterParty:'',posterMemo:'',memo:c.memo||'',date:'',startTime:'',endTime:'',
-      durationMinutes:'',googleMapsUrl:'',assigneeId:c.assigneeId||'',assigneeName:c.assigneeName||'',createdAt:c.createdAt||now_(),updatedAt:now_(),updatedBy:'upgradeV244'};
-    const k=key(item); if(!seen.has(k)){seen.add(k);out.push(RECORD_HEADERS.map(h=>item[h]??''));}
-  });
-  if(out.length)sh.getRange(sh.getLastRow()+1,1,out.length,RECORD_HEADERS.length).setValues(out);
-  return 'Ver.2.4.4移行完了：'+out.length+'件をRecordsへ移行';
-}
-
-
-function repairV244MemberTypes(){
-  const sh=SpreadsheetApp.getActive().getSheetByName(SHEETS.RECORDS);
-  if(!sh)return 'Recordsシートがありません';
-  ensureHeadersByName_(sh,RECORD_HEADERS);
-  const vals=sh.getDataRange().getValues();
-  if(vals.length<2)return '修正対象なし';
-  const h=vals[0].map(String);
-  const idx=Object.fromEntries(h.map((x,i)=>[x,i]));
-  let changed=0;
-  for(let r=1;r<vals.length;r++){
-    const row=vals[r];
-    let mt=String(row[idx.memberType]||'').trim();
-    if(mt==='party_member'||mt==='supporter'||mt==='general')continue;
-    const raw=[row[idx.memo],row[idx.personName],row[idx.sourceBranch]].map(x=>String(x||'')).join(' ');
-    if(/サポ|support/i.test(raw)){ row[idx.memberType]='supporter'; changed++; }
-    else if(/党員|会員|member/i.test(raw)){ row[idx.memberType]='party_member'; changed++; }
-  }
-  if(changed)sh.getRange(2,1,vals.length-1,vals[0].length).setValues(vals.slice(1));
-  return '区分修正：'+changed+'件';
-}
-
-
-function upgradeV245(){
-  const ss=SpreadsheetApp.getActive();
-  let rsh=ss.getSheetByName(SHEETS.RECORDS);
-  if(!rsh){rsh=ss.insertSheet(SHEETS.RECORDS);rsh.appendRow(RECORD_HEADERS);}
-  ensureHeadersByName_(rsh,RECORD_HEADERS);
-
-  let records=rowsWithRow_(SHEETS.RECORDS);
-  const contacts=rows_(SHEETS.CONTACTS);
-  const contactById=Object.fromEntries(contacts.map(c=>[String(c.contactId||''),c]));
-  const legacyKey=x=>String(x.partyId||'').trim()||
-    [x.personName||x.name,x.fullAddress,x.phone].map(v=>String(v||'').trim().toLowerCase()).join('|');
-  const contactByKey=Object.fromEntries(contacts.map(c=>[legacyKey(c),c]));
-  let normalized=0,migrated=0;
-
-  // Existing Records: make source/memberType explicit.
-  // 2.4.4でRecordsへ入ったが区分列が無かったデータは、旧Contactsと照合して復元する。
-  records.forEach(r=>{
-    const c=contactById[String(r.contactId||'')]||contactByKey[legacyKey(r)];
-    let source=String(r.source||'').trim();
-    let memberType=normalizeMemberType_(r.memberType);
-    if(c){
-      if(!source)source='import';
-      if(!r.memberType||memberType==='unknown')memberType=normalizeMemberType_(c.memberType);
-      if(!r.partyId)r.partyId=c.partyId||'';
-      if(!r.lastName)r.lastName=c.lastName||'';
-      if(!r.firstName)r.firstName=c.firstName||'';
-      if(!r.lastNameKana)r.lastNameKana=c.lastNameKana||'';
-      if(!r.firstNameKana)r.firstNameKana=c.firstNameKana||'';
-      if(!r.postalCode)r.postalCode=c.postalCode||'';
-      if(!r.sourceBranch)r.sourceBranch=c.sourceBranch||'';
-    }
-    if(!source)source='manual';
-    if(!r.memberType&&memberType==='unknown')memberType='general';
-    if(!r.source||!r.memberType||String(r.source)!==source||String(r.memberType)!==memberType||c){
-      r.source=source;r.memberType=memberType;
-      writeRecordByHeader_(rsh,r._row,r); normalized++;
-    }
-  });
-
-  // Old Contacts not already represented -> Records.
-  records=rowsWithRow_(SHEETS.RECORDS);
-  const key=legacyKey;
-  const seen=new Set(records.map(key));
-  contacts.forEach(c=>{
-    const item={
-      id:uuid_(),branchId:c.branchId||'',areaId:c.areaId||'',source:'import',memberType:normalizeMemberType_(c.memberType),
-      partyId:c.partyId||'',lastName:c.lastName||'',firstName:c.firstName||'',lastNameKana:c.lastNameKana||'',firstNameKana:c.firstNameKana||'',
-      postalCode:c.postalCode||'',birthDate:c.birthDate||'',gender:c.gender||'',occupation:c.occupation||'',approvedAt:c.approvedAt||'',
-      branchParticipation:c.branchParticipation||'',joinReason:c.joinReason||'',sourceBranch:c.sourceBranch||'',contactId:'',
-      lat:c.lat||'',lng:c.lng||'',area:'',address:'',fullAddress:c.fullAddress||'',personName:c.name||'',phone:c.phone||'',email:c.email||'',
-      status:'unvisited',type:'戸建て',household:'',contact:'',revisitPriority:'',referrer:c.referrer||'',supporter:c.supporter||'',
-      warning:false,warningReason:'',warningMemo:'',signboard:false,posterParty:'',posterMemo:'',memo:c.memo||'',
-      date:'',startTime:'',endTime:'',durationMinutes:'',googleMapsUrl:'',assigneeId:c.assigneeId||'',assigneeName:c.assigneeName||'',
-      createdAt:c.createdAt||now_(),updatedAt:now_(),updatedBy:'upgradeV245'
-    };
-    const k=key(item);
-    if(!seen.has(k)){writeRecordByHeader_(rsh,null,item);seen.add(k);migrated++;}
-  });
-  return 'Ver.2.4.5移行完了：既存Records補正 '+normalized+'件／Contacts→Records移行 '+migrated+'件';
-}
-
-
-function setupFukuokaTestDataV246(){
-  const ss=SpreadsheetApp.getActive();
-  ensureSheet_(ss,SHEETS.BRANCHES,BRANCH_HEADERS);
-  ensureSheet_(ss,SHEETS.AREAS,AREA_HEADERS);
-
-  const bsh=ss.getSheetByName(SHEETS.BRANCHES);
-  const ash=ss.getSheetByName(SHEETS.AREAS);
-
-  function findBranch_(n){
-    return rowsWithRow_(SHEETS.BRANCHES).find(b=>{
-      const x=String(b.name||'').replace(/\s/g,'');
-      if(n===1)return /福岡第1支部|第1支部|第一支部/.test(x);
-      if(n===2)return /福岡第2支部|第2支部|第二支部/.test(x);
-      return /福岡第3支部|第3支部|第三支部/.test(x);
-    });
-  }
-  function ensureBranch_(n,suggestedId,name){
-    const old=findBranch_(n);
-    const item={branchId:old?old.branchId:suggestedId,name,prefecture:'福岡県',active:true};
-    const vals=BRANCH_HEADERS.map(h=>item[h]??'');
-    if(old)bsh.getRange(old._row,1,1,BRANCH_HEADERS.length).setValues([vals]);
-    else bsh.appendRow(vals);
-    return item.branchId;
-  }
-  const b1=ensureBranch_(1,'fukuoka_1','福岡第1支部');
-  const b2=ensureBranch_(2,'fukuoka_2','福岡第2支部');
-  const b3=ensureBranch_(3,'fukuoka_3','福岡第3支部');
-
-  const areaDefs=[
-    {areaId:'fukuoka_higashi',branchId:b1,city:'福岡市',name:'東区',mapLat:33.6177,mapLng:130.4177,active:true},
-    {areaId:'fukuoka_hakata',branchId:b1,city:'福岡市',name:'博多区',mapLat:33.5913,mapLng:130.4149,active:true},
-    {areaId:'fukuoka_chuo',branchId:b2,city:'福岡市',name:'中央区',mapLat:33.5892,mapLng:130.3928,active:true},
-    {areaId:'fukuoka_minami',branchId:b2,city:'福岡市',name:'南区',mapLat:33.5619,mapLng:130.4266,active:true},
-    {areaId:'fukuoka_jonan_2',branchId:b2,city:'福岡市',name:'城南区',mapLat:33.5750,mapLng:130.3704,active:true},
-    {areaId:'fukuoka_sawara',branchId:b3,city:'福岡市',name:'早良区',mapLat:33.5818,mapLng:130.3485,active:true},
-    {areaId:'fukuoka_nishi',branchId:b3,city:'福岡市',name:'西区',mapLat:33.5829,mapLng:130.3231,active:true},
-    {areaId:'itoshima',branchId:b3,city:'糸島市',name:'糸島市',mapLat:33.5570,mapLng:130.1956,active:true}
-  ];
-  areaDefs.forEach(item=>{
-    const old=rowsWithRow_(SHEETS.AREAS).find(a=>String(a.city||'')===item.city&&String(a.name||'')===item.name);
-    if(old)item.areaId=old.areaId; // 既存の東区などはIDを維持して重複させない
-    const vals=AREA_HEADERS.map(h=>item[h]??'');
-    if(old)ash.getRange(old._row,1,1,AREA_HEADERS.length).setValues([vals]);
-    else ash.appendRow(vals);
-  });
-
-  return '福岡第1〜第3支部・活動エリアを登録/更新しました。既存の東区などは重複作成せずIDを維持します。城南区西部の第3支部境界は町丁目単位のため、このテストでは城南区を第2支部として扱います。';
-}
-
-
-function upgradeV247(){
-  const ss=SpreadsheetApp.getActive();
-  ensureSheet_(ss,SHEETS.BRANCHES,BRANCH_HEADERS);
-  ensureSheet_(ss,SHEETS.AREAS,AREA_HEADERS);
-  ensureSheet_(ss,SHEETS.USERS,USER_HEADERS);
-  ensureSheet_(ss,SHEETS.RECORDS,RECORD_HEADERS);
-
-  // 1) 支部IDを fukuoka_1 / fukuoka_2 / fukuoka_3 に統一
-  const branchMap={};
-  const bsh=ss.getSheetByName(SHEETS.BRANCHES);
-  const branches=rowsWithRow_(SHEETS.BRANCHES);
-  branches.forEach(b=>{
-    const n=String(b.name||'').replace(/\s/g,'');
-    let target='';
-    if(/福岡第1支部|第1支部|第一支部/.test(n))target='fukuoka_1';
-    else if(/福岡第2支部|第2支部|第二支部/.test(n))target='fukuoka_2';
-    else if(/福岡第3支部|第3支部|第三支部/.test(n))target='fukuoka_3';
-    if(target){
-      branchMap[String(b.branchId)]=target;
-      b.branchId=target;
-      b.name=target==='fukuoka_1'?'福岡第1支部':target==='fukuoka_2'?'福岡第2支部':'福岡第3支部';
-      b.prefecture='福岡県'; b.active=true;
-      bsh.getRange(b._row,1,1,BRANCH_HEADERS.length).setValues([BRANCH_HEADERS.map(h=>b[h]??'')]);
-    }
-  });
-
-  // 重複した同一支部行があれば最初の1行だけ残す
-  const bvals=bsh.getDataRange().getValues();
-  const bh=bvals[0].map(String), bid=bh.indexOf('branchId');
-  const seenB=new Set();
-  for(let i=bvals.length-1;i>=1;i--){
-    const id=String(bvals[i][bid]||'');
-    if(!id)continue;
-    if(seenB.has(id))bsh.deleteRow(i+1); else seenB.add(id);
-  }
-
-  // 2) Areas / Users / Records の branchId を追随
-  function replaceBranchIds_(sheetName){
-    const sh=ss.getSheetByName(sheetName); if(!sh||sh.getLastRow()<2)return 0;
-    const vals=sh.getDataRange().getValues(),h=vals[0].map(String),idx=h.indexOf('branchId');
-    if(idx<0)return 0;
-    let changed=0;
-    for(let r=1;r<vals.length;r++){
-      const old=String(vals[r][idx]||'');
-      if(branchMap[old]&&branchMap[old]!==old){vals[r][idx]=branchMap[old];changed++;}
-    }
-    if(changed)sh.getRange(2,1,vals.length-1,vals[0].length).setValues(vals.slice(1));
-    return changed;
-  }
-  const changedAreasBranch=replaceBranchIds_(SHEETS.AREAS);
-  const changedUsersBranch=replaceBranchIds_(SHEETS.USERS);
-  const changedRecordsBranch=replaceBranchIds_(SHEETS.RECORDS);
-
-  // 3) 既存の福岡市エリアを支部・名称で整理
-  const ash=ss.getSheetByName(SHEETS.AREAS);
-  const areaRows=rowsWithRow_(SHEETS.AREAS);
-  const defs=[
-    {city:'福岡市',name:'東区',branchId:'fukuoka_1'},
-    {city:'福岡市',name:'博多区',branchId:'fukuoka_1'},
-    {city:'福岡市',name:'中央区',branchId:'fukuoka_2'},
-    {city:'福岡市',name:'南区',branchId:'fukuoka_2'},
-    {city:'福岡市',name:'城南区',branchId:'fukuoka_2'},
-    {city:'福岡市',name:'早良区',branchId:'fukuoka_3'},
-    {city:'福岡市',name:'西区',branchId:'fukuoka_3'},
-    {city:'糸島市',name:'糸島市',branchId:'fukuoka_3'}
-  ];
-  defs.forEach(d=>{
-    const a=areaRows.find(x=>String(x.city||'')===d.city&&String(x.name||'')===d.name);
-    if(a){
-      a.branchId=d.branchId;a.active=true;
-      ash.getRange(a._row,1,1,AREA_HEADERS.length).setValues([AREA_HEADERS.map(h=>a[h]??'')]);
-    }
-  });
-
-  // 4) 住所から Records の areaId / branchId を再判定
-  const currentAreas=rows_(SHEETS.AREAS).filter(a=>truth_(a.active));
-  const rsh=ss.getSheetByName(SHEETS.RECORDS);
-  const records=rowsWithRow_(SHEETS.RECORDS);
-  let reassigned=0,unmatched=0;
-
-  function detectByAddress_(address){
-    const s=String(address||'').replace(/\s+/g,'');
-    if(!s)return null;
-    const wardMatch=s.match(/福岡市(東区|博多区|中央区|南区|城南区|早良区|西区)/);
-    if(wardMatch){
-      const ward=wardMatch[1];
-      const candidates=currentAreas.filter(a=>String(a.city||'')==='福岡市'&&String(a.name||'')===ward);
-      if(candidates.length===1)return candidates[0];
-    }
-    if(/糸島市/.test(s)){
-      const candidates=currentAreas.filter(a=>String(a.city||'')==='糸島市'&&String(a.name||'')==='糸島市');
-      if(candidates.length===1)return candidates[0];
-    }
-    return null;
-  }
-
-  records.forEach(r=>{
-    const a=detectByAddress_(r.fullAddress||r.address||'');
-    if(!a){if(r.fullAddress||r.address)unmatched++;return;}
-    if(String(r.areaId)!==String(a.areaId)||String(r.branchId)!==String(a.branchId)){
-      r.areaId=a.areaId;r.branchId=a.branchId;
-      writeRecordByHeader_(rsh,r._row,r);
-      reassigned++;
-    }
-  });
-
-  // 5) member ユーザーの areaId は既存のまま。branchIdだけ上で追随済み。
-  return 'Ver.2.4.7移行完了：Records再配属 '+reassigned+
-    '件／住所判定不可 '+unmatched+
-    '件／Areas支部ID更新 '+changedAreasBranch+
-    '件／Users支部ID更新 '+changedUsersBranch+
-    '件／Records支部ID更新 '+changedRecordsBranch+'件';
-}
-
-function upgradeV253(){
-  const ss=SpreadsheetApp.getActive(),sh=ss.getSheetByName(SHEETS.RECORDS);
-  if(!sh)throw Error('Recordsシートがありません');
-  ensureHeadersByName_(sh,RECORD_HEADERS);
-  const rs=rowsWithRow_(SHEETS.RECORDS);let changed=0;
-  rs.forEach(r=>{if(r.active===''||r.active==null){r.active=true;writePosterByHeader_(sh,r._row,r);changed++;}});
-  return 'Ver.2.5.3移行完了：active初期化 '+changed+'件';
-}
-
-
-
-
-
-
-function upgradeV263(){
-  const ss=SpreadsheetApp.getActive();
-  const rsh=ss.getSheetByName(SHEETS.RECORDS);
-  ensureHeadersByName_(rsh,RECORD_HEADERS);
-  return 'Ver.2.6.3移行完了';
-}
-
-function upgradeV264(){
-  const ss=SpreadsheetApp.getActive();
-  const rsh=ss.getSheetByName(SHEETS.RECORDS);
-  ensureHeadersByName_(rsh,RECORD_HEADERS);
-  return 'Ver.2.6.4移行完了：他党ポスター機能を削除しました。既存Postersシートは安全のため自動削除していません。';
-}
-
-function upgradeV270(){
-  const ss=SpreadsheetApp.getActive();
-  const rsh=ss.getSheetByName(SHEETS.RECORDS);
-  if(!rsh)throw Error('Recordsシートがありません');
-  ensureHeadersByName_(rsh,RECORD_HEADERS);
-  return 'あいサポ Ver.2.7.0 移行完了：フォロー項目を追加しました';
-}
+// Ver.2.8.32: ログイン履歴シートを追加します。1回だけ実行してください。
