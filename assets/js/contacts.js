@@ -83,7 +83,7 @@ async function importContactsFile(){
       const failures=d.failed||[];pendingImportLocations.push(...failures.filter(x=>x.category==='location').map(x=>({...x,areaId:x.areaId||currentAreaId})));rejectedImports.push(...failures.filter(x=>x.category!=='location'));
     }
     $('importResult').innerHTML=`<div class="import-summary"><div class="import-summary-title">✓ 取込完了</div><div class="import-summary-main">${added}件を追加しました</div><div class="import-summary-counts"><span>入力 ${normalized.length}件</span><span>重複 ${duplicateSkipped}件</span><span>位置未確認 ${pendingImportLocations.length}件</span><span>対象外 ${rejectedImports.length}件</span></div></div>`;
-    renderPendingImports();await loadRecords();await loadImportIssues();
+    renderPendingImports();await loadRecords();await loadImportIssues();await loadImportIssueHistory();await loadImportIssueHistory();
     if(pendingImportLocations.length)alert(`⚠ ${pendingImportLocations.length}件は位置情報へ変換できなかったため登録していません。\n「位置未確認データ」から確認してください。`);
   }catch(e){
     $('importResult').innerHTML=`<div class="import-status error">エラー：${esc(e.message)}</div>`;
@@ -131,6 +131,40 @@ function formatImportIssueDate(v){
   return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
+
+
+async function loadImportIssueHistory(){
+  const panel=$('importIssueHistoryPanel'),list=$('importIssueHistoryList'),count=$('importIssueHistoryCount'),body=$('importIssueHistoryBody'),toggle=$('importIssueHistoryToggle');
+  if(!panel||!list||!count||!body||!toggle)return;
+  if(!window.appSession||!['leader','prefecture_admin','system_admin'].includes(window.appSession.role)){panel.classList.add('hidden');return;}
+  try{
+    const d=await api('listImportIssueHistory',{areaId:currentAreaId});
+    const history=d.history||[];
+    panel.classList.toggle('hidden',history.length===0);
+    count.textContent=history.length?`${history.length}件`:'';
+    list.innerHTML=history.map(x=>`<div class="import-issue-row history-row"><span class="import-issue-id">${esc(x.partyId||'')}</span><span class="import-issue-reason">${esc(x.reason||'確認が必要です')}</span><span class="import-issue-status">${x.resolved?'解消済み':'未解決'}</span><span class="import-issue-date">${esc(formatImportIssueDate(x.importedAt))}</span></div>`).join('');
+    const open=localStorage.getItem('aisapo.importIssueHistoryOpen')==='1';
+    body.classList.toggle('hidden',!open);
+    toggle.textContent=open?'閉じる':'表示';
+    toggle.setAttribute('aria-expanded',open?'true':'false');
+  }catch(e){
+    panel.classList.remove('hidden');
+    count.textContent='';
+    body.classList.remove('hidden');
+    toggle.textContent='閉じる';
+    toggle.setAttribute('aria-expanded','true');
+    list.innerHTML=`<div class="card-sub">取込履歴を読み込めませんでした：${esc(e.message)}</div>`;
+  }
+}
+function toggleImportIssueHistory(){
+  const body=$('importIssueHistoryBody'),toggle=$('importIssueHistoryToggle');
+  if(!body||!toggle)return;
+  const willOpen=body.classList.contains('hidden');
+  body.classList.toggle('hidden',!willOpen);
+  toggle.textContent=willOpen?'閉じる':'表示';
+  toggle.setAttribute('aria-expanded',willOpen?'true':'false');
+  localStorage.setItem('aisapo.importIssueHistoryOpen',willOpen?'1':'0');
+}
 
 function renderPendingImports(){
   const panel=$('pendingImportPanel'),list=$('pendingImportList'),sum=$('pendingImportSummary');if(!panel||!list||!sum)return;

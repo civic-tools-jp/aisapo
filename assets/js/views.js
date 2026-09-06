@@ -93,13 +93,12 @@ function toggleListFilters(force){
   }
 }
 function clearListFilters(){
-  const values={listPartyIdSearch:'',listSearch:'',listSource:'',listMemberType:'',listSupportRank:'',listLocation:'',listSort:'default',listDateFrom:'',listDateTo:''};
+  const values={listSearch:'',listSource:'',listMemberType:'',listSupportRank:'',listLocation:'',listSort:'default',listDateFrom:'',listDateTo:''};
   Object.entries(values).forEach(([id,val])=>{const el=$(id);if(el)el.value=val;});
   ['listUnvisited','listVisited','listAbsent','listRevisit','listRefused','listWarning','listFollow','listFollowPending','listPosterRequest','listPosterPending','listUrgent','listOverdue'].forEach(id=>{const el=$(id);if(el)el.checked=false;});
   renderLists();
 }
 function renderLists(){
-  const partyIdQ=($('listPartyIdSearch')?.value||'').trim().toLowerCase();
   const q=($('listSearch')?.value||'').trim().toLowerCase();
   const source=$('listSource')?.value||'',memberType=$('listMemberType')?.value||'',supportRank=$('listSupportRank')?.value||'',location=$('listLocation')?.value||'',sort=$('listSort')?.value||'default',dateFrom=$('listDateFrom')?.value||'',dateTo=$('listDateTo')?.value||'';
   const unvisited=!!$('listUnvisited')?.checked,visitedFilter=!!$('listVisited')?.checked,absentFilter=!!$('listAbsent')?.checked,revisit=!!$('listRevisit')?.checked,refused=!!$('listRefused')?.checked,warning=!!$('listWarning')?.checked;
@@ -108,8 +107,7 @@ function renderLists(){
   const td=today();
   const filtered=records.filter(r=>{
     if(currentAreaId&&String(r.areaId||'')!==String(currentAreaId))return false;
-    if(partyIdQ&&!String(r.partyId||'').toLowerCase().includes(partyIdQ))return false;
-    if(q&&![r.personName,r.fullAddress,r.phone,r.email,r.sourceBranch,r.referrer,r.memo,r.followMemo,r.posterRequestMemo].some(v=>String(v||'').toLowerCase().includes(q)))return false;
+    if(q&&![r.partyId,r.personName,r.fullAddress,r.phone,r.email,r.sourceBranch,r.referrer,r.memo,r.followMemo,r.posterRequestMemo].some(v=>String(v||'').toLowerCase().includes(q)))return false;
     if(source&&String(r.source||'manual')!==source)return false;
     if(memberType&&String(r.memberType||'general')!==memberType)return false;
     const rank=supportRankValue(r.supporter);
@@ -133,7 +131,7 @@ function renderLists(){
   if(sort==='date_desc')filtered.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   if(sort==='date_asc')filtered.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
   const countEl=$('listResultCount');
-  if(countEl)countEl.textContent=(partyIdQ||q)?`${records.length}件中 ${filtered.length}件表示`:`${filtered.length}件`;
+  if(countEl)countEl.textContent=q?`${records.length}件中 ${filtered.length}件表示`:`${filtered.length}件`;
   $('listCards').innerHTML=filtered.map(recordCard).join('')||'<div class="panel notice">該当データはありません。</div>';
 }
 
@@ -301,7 +299,7 @@ function showView(v,opts={}){
   const fromAnalysis=v==='list'&&!!opts.fromAnalysis;
   backButtons.forEach(back=>back.classList.toggle('hidden',!fromAnalysis));
   if(v==='analysis')renderAnalysis();
-  if(v==='contacts'&&typeof loadImportIssues==='function')loadImportIssues();
+  if(v==='contacts'){if(typeof loadImportIssues==='function')loadImportIssues();if(typeof loadImportIssueHistory==='function')loadImportIssueHistory();}
   if(v==='list')setTimeout(()=>toggleListFilters(false),0);
   if(v==='map')setTimeout(()=>{if(map&&typeof map.invalidateSize==='function')map.invalidateSize();},100);
   setTimeout(updateScrollTopFloating,0);
