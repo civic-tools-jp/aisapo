@@ -29,7 +29,6 @@ function renderStatus(){
   const state=visitStateForRecord(editing||{}),result=lastVisitResultLabel(editing||{}),count=Number(editing?.visitCount||editing?.roundNo||0)||0;
   const next=editing?.nextVisitDate?formatVisitDate(editing.nextVisitDate):'未設定',last=editing?.date?formatVisitDate(editing.date):'—';
   if($('detailHeaderStatus'))$('detailHeaderStatus').innerHTML=`<span class="status-icon">${state.icon}</span>${state.label}`;
-  const summary=$('visitSummary');if(summary)summary.innerHTML=`<div class="visit-summary-grid"><div><span>訪問状況</span><strong>${state.icon} ${esc(state.label)}</strong></div><div><span>最終訪問結果</span><strong>${esc(result||'—')}</strong></div><div><span>最終訪問日</span><strong>${esc(last)}</strong></div><div><span>訪問回数</span><strong>${count}回</strong></div><div><span>次回訪問日</span><strong>${esc(next)}</strong></div></div>`;
   renderDetailQuickSummary(editing||{});
 }
 function inputDateValue(v){
