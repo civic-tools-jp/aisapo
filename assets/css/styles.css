@@ -2167,3 +2167,11 @@ button.visit-progress-item{cursor:pointer}
   .visit-progress-secondary{gap:10px}
   .connection-groups{grid-template-columns:1fr;gap:14px}
 }
+
+
+/* Ver.2.8.59: compact empty dashboard sections */
+.activity-section.is-compact-empty { padding-bottom: 18px; }
+.today-action-section.is-compact-empty .section-heading { margin-bottom: 10px; }
+.today-action-section.is-compact-empty .today-clear-note { margin-top: 0; }
+.region-progress-section.is-compact-empty { padding-bottom: 16px; }
+.region-progress-section.is-compact-empty .section-heading { margin-bottom: 0; }
