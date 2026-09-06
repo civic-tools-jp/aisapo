@@ -1,13 +1,31 @@
 "use strict";
+
+const AISAPO_IDLE_LIMIT_MS=3*60*60*1000;
+let aisapoIdleTimer=null;
+function touchSessionActivity(){
+  if(!window.appSession)return;
+  const now=Date.now();
+  localStorage.setItem('aisapo_last_activity',String(now));
+  clearTimeout(aisapoIdleTimer);
+  aisapoIdleTimer=setTimeout(()=>logout('idle'),AISAPO_IDLE_LIMIT_MS);
+}
+function startIdleLogoutWatch(){
+  const last=Number(localStorage.getItem('aisapo_last_activity')||0);
+  if(last&&Date.now()-last>=AISAPO_IDLE_LIMIT_MS){logout('idle');return false;}
+  ['click','touchstart','keydown','scroll'].forEach(ev=>document.addEventListener(ev,touchSessionActivity,{passive:true}));
+  touchSessionActivity();
+  return true;
+}
 function eyeSvg(hidden){return hidden?`<svg class="password-eye-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3 3.7M6.2 6.2C3.5 8 2 12 2 12s3.5 6 10 6c1.8 0 3.3-.5 4.6-1.2"/><path d="M9.9 9.9A3 3 0 0 0 14.1 14.1"/></svg>`:`<svg class="password-eye-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>`}
 function syncLoginPasswordState(forceHidden=false){const input=$('loginPassword'),btn=$('loginPasswordToggle');if(!input)return;if(forceHidden)input.type='password';const hidden=input.type!=='text';if(btn){btn.setAttribute('aria-label',hidden?'パスワードを表示':'パスワードを隠す');btn.title=hidden?'パスワードを表示':'パスワードを隠す';btn.innerHTML=eyeSvg(hidden);}}
 function toggleLoginPassword(){const input=$('loginPassword');if(!input)return;input.type=input.type==='text'?'password':'text';syncLoginPasswordState(false)}
 window.addEventListener('pageshow',()=>syncLoginPasswordState(true));
 window.addEventListener('DOMContentLoaded',()=>syncLoginPasswordState(true));
-async function login(){try{msg("loginMsg","");const data=await api("login",{loginId:$('loginId').value.trim(),password:$('loginPassword').value});window.appSession=data.session;localStorage.setItem("aisapo_session",JSON.stringify(window.appSession));startApp();}catch(e){msg("loginMsg",e.message)}}
-function logout(){localStorage.removeItem("aisapo_session");localStorage.removeItem("gdbv2_session");window.appSession=null;location.reload()}
+async function login(){try{msg("loginMsg","");const data=await api("login",{loginId:$('loginId').value.trim(),password:$('loginPassword').value});window.appSession=data.session;localStorage.setItem("aisapo_session",JSON.stringify(window.appSession));localStorage.setItem('aisapo_last_activity',String(Date.now()));startApp();}catch(e){msg("loginMsg",e.message)}}
+function logout(reason=''){clearTimeout(aisapoIdleTimer);localStorage.removeItem("aisapo_session");localStorage.removeItem("gdbv2_session");localStorage.removeItem('aisapo_last_activity');window.appSession=null;if(reason==='idle')sessionStorage.setItem('aisapo_logout_notice','3時間操作がなかったため自動ログアウトしました。');location.reload()}
 async function startApp(){
   if(!window.appSession)return;
+  if(!startIdleLogoutWatch())return;
   $('loginView').classList.add('hidden');$('app').classList.remove('hidden');
   $('userName').textContent=window.appSession.name;
   if($('mobileUserName'))$('mobileUserName').textContent=window.appSession.name;
@@ -50,3 +68,5 @@ window.togglePasswordCharacter=function(ev,btn){
   btn.setAttribute('aria-pressed',show?'true':'false');
   return false;
 };
+
+window.addEventListener('DOMContentLoaded',()=>{const n=sessionStorage.getItem('aisapo_logout_notice');if(n){sessionStorage.removeItem('aisapo_logout_notice');setTimeout(()=>msg('loginMsg',n),0);}});

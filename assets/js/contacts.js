@@ -64,16 +64,50 @@ function inferMemberType(row,forced){
 }
 function normalizeImportRow(row,forced){
   const last=String(headerValue(row,['氏名（姓）','氏名(姓)','姓'])||'').trim();
-  const first=String(headerValue(row,['氏名（名）','氏名(名)','名'])||'').trim();
+  const fullName=String(headerValue(row,['氏名','名前','お名前','氏名（漢字）','会員氏名'])||'').trim();
+  const inferredLast=last||(fullName?fullName.replace(/[　\s]+/g,' ').split(' ')[0]:'');
   return{
-    partyId:String(headerValue(row,['参政党ID','党員ID','会員ID'])||'').trim(),lastName:last,firstName:first,
-    lastNameKana:String(headerValue(row,['氏名（セイ）','氏名(セイ)','セイ'])||'').trim(),firstNameKana:String(headerValue(row,['氏名（メイ）','氏名(メイ)','メイ'])||'').trim(),
-    name:String(headerValue(row,['氏名','名前','お名前','氏名（漢字）','会員氏名'])||[last,first].filter(Boolean).join(' ')).trim(),
-    phone:String(headerValue(row,['電話番号','電話','携帯電話','携帯','TEL','Tel'])||'').trim(),email:String(headerValue(row,['メールアドレス','メール','E-mail','Email','email'])||'').trim(),
-    postalCode:String(headerValue(row,['郵便番号'])||'').trim(),fullAddress:String(headerValue(row,['住所(建物名なども含む)','住所（建物名なども含む）','住所','現住所','住所1','住所（自宅）'])||'').trim(),
-    memberType:inferMemberType(row,forced),birthDate:headerValue(row,['生年月日']),gender:String(headerValue(row,['性別'])||'').trim(),occupation:String(headerValue(row,['職業'])||'').trim(),
-    approvedAt:headerValue(row,['承認日']),branchParticipation:String(headerValue(row,['支部参加'])||'').trim(),joinReason:String(headerValue(row,['入党(入会)理由','入党（入会）理由','入党理由','入会理由'])||'').trim(),sourceBranch:String(headerValue(row,['支部'])||'').trim(),
-    referrer:String(headerValue(row,['紹介者','紹介元'])||'').trim(),memo:String(headerValue(row,['メモ','備考','摘要'])||'').trim()
+    partyId:String(headerValue(row,['参政党ID','党員ID','会員ID'])||'').trim(),
+    lastName:inferredLast,
+    fullAddress:String(headerValue(row,['住所(建物名なども含む)','住所（建物名なども含む）','住所','現住所','住所1','住所（自宅）'])||'').trim(),
+    memberType:inferMemberType(row,forced),
+    sourceBranch:String(headerValue(row,['支部'])||'').trim()
   };
 }
-async function importContactsFile(){const file=$('contactImportFile').files[0];if(!file){alert('ExcelまたはCSVを選んでください');return}if(!currentAreaId){alert('取込先の活動エリアを選んでください');return}try{$('importResult').textContent='読み込み中...';const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const raw=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});const forced='auto';const normalized=raw.map(r=>normalizeImportRow(r,forced)).filter(r=>r.name||r.fullAddress);if(!normalized.length)throw Error('氏名または住所のある行が見つかりません');let added=0,skipped=0,duplicateSkipped=0,unmatched=0,areaUndetermined=0,geocoded=0,geocodeFailed=0;for(let i=0;i<normalized.length;i+=200){const d=await api('importContacts',{areaId:currentAreaId,contacts:normalized.slice(i,i+200)});added+=Number(d.added||0);skipped+=Number(d.skipped||0);duplicateSkipped+=Number(d.duplicateSkipped||0);unmatched+=Number(d.unmatched||0);areaUndetermined+=Number(d.areaUndetermined||0);geocoded+=Number(d.geocoded||0);geocodeFailed+=Number(d.geocodeFailed||0)}const otherSkipped=Math.max(0,skipped-duplicateSkipped-unmatched),accounted=added+duplicateSkipped+unmatched+otherSkipped;$('importResult').textContent=`取込完了：入力 ${normalized.length}件／${added}件追加／党員ID重複 ${duplicateSkipped}件スキップ／地図位置取得 ${geocoded}件／位置取得失敗 ${geocodeFailed}件／エリア未判定 ${areaUndetermined}件／エリア判定外 ${unmatched}件／その他スキップ ${otherSkipped}件${accounted!==normalized.length?` ／⚠ 未計上 ${normalized.length-accounted}件`:''}`;await loadRecords();}catch(e){$('importResult').textContent='エラー：'+e.message}}
+async function importContactsFile(){
+  const file=$('contactImportFile').files[0];if(!file){alert('ExcelまたはCSVを選んでください');return}if(!currentAreaId){alert('取込先の活動エリアを選んでください');return}
+  try{
+    $('importResult').textContent='読み込み中...';pendingImportLocations=[];renderPendingImports();
+    const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const raw=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+    const normalized=raw.map(r=>normalizeImportRow(r,'auto')).filter(r=>r.partyId||r.lastName||r.fullAddress);if(!normalized.length)throw Error('党員ID・苗字・住所のある行が見つかりません');
+    let added=0,skipped=0,duplicateSkipped=0,geocoded=0;
+    for(let i=0;i<normalized.length;i+=200){
+      const d=await api('importContacts',{areaId:currentAreaId,contacts:normalized.slice(i,i+200)});
+      added+=Number(d.added||0);skipped+=Number(d.skipped||0);duplicateSkipped+=Number(d.duplicateSkipped||0);geocoded+=Number(d.geocoded||0);
+      pendingImportLocations.push(...(d.failed||[]).map(x=>({...x,areaId:currentAreaId})));
+    }
+    $('importResult').textContent=`取込完了：入力 ${normalized.length}件／${added}件追加／党員ID重複 ${duplicateSkipped}件／位置変換成功 ${geocoded}件／位置未確認 ${pendingImportLocations.length}件`;
+    renderPendingImports();await loadRecords();
+    if(pendingImportLocations.length)alert(`⚠ ${pendingImportLocations.length}件は位置情報へ変換できなかったため登録していません。
+「位置未確認データ」から確認してください。`);
+  }catch(e){$('importResult').textContent='エラー：'+e.message}
+}
+function renderPendingImports(){
+  const panel=$('pendingImportPanel'),list=$('pendingImportList'),sum=$('pendingImportSummary');if(!panel||!list||!sum)return;
+  const active=pendingImportLocations.map((x,i)=>({...x,_i:i})).filter(x=>!x.resolved);panel.classList.toggle('hidden',active.length===0);sum.textContent=active.length?`${active.length}件はまだ保存されていません。元住所はこの画面内だけで一時利用します。`:'';
+  list.innerHTML=active.map(x=>`<div class="pending-import-item"><span>${esc(x.lastName||'苗字未設定')} ${x.partyId?`（ID: ${esc(x.partyId)}）`:''}<br><small>${esc(x.reason||'位置未確認')}</small></span><button class="btn" onclick="openPendingImportLocation(${x._i})">位置を確認</button></div>`).join('');
+}
+function closePendingImportLocation(){const el=$('importLocationModal');if(el)el.style.display='none';pendingImportIndex=-1;}
+async function openPendingImportLocation(index){
+  const item=pendingImportLocations[index];if(!item)return;pendingImportIndex=index;$('pendingImportPerson').textContent=`${item.lastName||'苗字未設定'}${item.partyId?` ／ 党員ID ${item.partyId}`:''}`;$('pendingImportAddress').textContent=item.address||'住所なし';$('importLocationModal').style.display='flex';
+  setTimeout(async()=>{
+    if(!importLocationMap){importLocationMap=L.map('importLocationMap').setView([33.5902,130.4017],13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(importLocationMap);importLocationMap.on('click',e=>setPendingImportMarker(e.latlng.lat,e.latlng.lng));}
+    importLocationMap.invalidateSize();const area=areas.find(a=>String(a.areaId)===String(item.areaId));if(area&&Number(area.mapLat)&&Number(area.mapLng))importLocationMap.setView([Number(area.mapLat),Number(area.mapLng)],13);
+    const pos=await geocodeAddressQuietly(item.address||'');if(pos){setPendingImportMarker(pos.lat,pos.lng);importLocationMap.setView([pos.lat,pos.lng],17)}
+  },80);
+}
+function setPendingImportMarker(lat,lng){if(importLocationMarker)importLocationMarker.remove();importLocationMarker=L.marker([lat,lng],{draggable:true}).addTo(importLocationMap);importLocationMarker.on('dragend',()=>{});}
+async function savePendingImportLocation(){
+  const item=pendingImportLocations[pendingImportIndex];if(!item||!importLocationMarker){alert('地図をタップして位置を指定してください');return}
+  const p=importLocationMarker.getLatLng();try{await api('saveImportedLocation',{areaId:item.areaId,partyId:item.partyId,lastName:item.lastName,memberType:item.memberType,lat:p.lat,lng:p.lng});item.resolved=true;closePendingImportLocation();renderPendingImports();await loadRecords();}catch(e){alert(e.message)}
+}

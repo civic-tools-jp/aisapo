@@ -46,6 +46,11 @@ function isPartyOrSupporter(c){
   return /党員|会員|サポーター/.test(raw);
 }
 function openEdit(r,isNew){editing={...r,isNew};$('recordId').value=r.id||'';$('recordMemberType').value=r.memberType||'general';$('recordSource').value=r.source||(isNew?'manual':'');$('lat').value=r.lat||'';$('lng').value=r.lng||'';$('fullAddress').value=r.fullAddress||'';$('personName').value=(typeof recordDisplayName==='function'?recordDisplayName(r):(r.personName||''));$('recordPhone').value=r.phone||'';$('recordEmail').value=r.email||'';$('supporter').value=(typeof supportRankValue==='function'?supportRankValue(r.supporter):(r.supporter||''));$('priority').value=r.revisitPriority||'';$('referrer').value=r.referrer||'';$('followParty').checked=boolValue(r.followParty);$('followSupporter').checked=boolValue(r.followSupporter);$('followDetails').checked=boolValue(r.followDetails);$('followDone').checked=boolValue(r.followDone);$('followMemo').value=r.followMemo||'';toggleFollowFields();$('warning').checked=boolValue(r.warning);$('warningReason').value=r.warningReason||'';$('warningMemo').value=r.warningMemo||'';toggleWarningFields();$('posterRequest').checked=boolValue(r.posterRequest);$('posterReported').checked=boolValue(r.posterReported);$('posterRequestMemo').value=r.posterRequestMemo||'';togglePosterRequestFields();$('type').value=r.type||'戸建て';$('date').value=today();$('memo').value='';if($('visitRound'))$('visitRound').value=String(nextRoundForRecord(r));if($('visitResult'))$('visitResult').value='';if($('visitPosted'))$('visitPosted').checked=false;if($('nextVisitDate'))$('nextVisitDate').value=r.nextVisitDate?inputDateValue(r.nextVisitDate):'';toggleVisitResultFields();editStatus=statusKey(r.status);renderStatus();updateDetailHeader({...r,isNew});const imported=String(r.source||'')==='import';
+  const importedPrivacy=imported;
+  $('recordAddressBlock')?.classList.toggle('hidden',importedPrivacy);
+  $('recordImportedLocationBlock')?.classList.toggle('hidden',!importedPrivacy);
+  $('recordContactFields')?.classList.toggle('hidden',importedPrivacy);
+  if(importedPrivacy){$('fullAddress').value='';$('recordPhone').value='';$('recordEmail').value='';setTimeout(()=>initRecordLocationMap(r),60);}
   const canRemove=!!r.id&&(!imported||['leader','prefecture_admin','system_admin'].includes(window.appSession?.role));
   $('deleteRecordRow')?.classList.toggle('hidden',!canRemove);
   $('mobileDetailDeleteBtn')?.classList.toggle('hidden',!canRemove);
@@ -60,7 +65,7 @@ function openEdit(r,isNew){editing={...r,isNew};$('recordId').value=r.id||'';$('
   const importedMember=protectedMember&&String(r.source||'')==='import';
   const locationConfirmed=protectedMember&&r.locationConfirmed===true;
 
-  $('personName').readOnly=importedMember;
+  $('personName').readOnly=importedPrivacy||importedMember;
   $('recordPhone').readOnly=protectedMember;
   $('recordMemberType').disabled=protectedMember;
   $('fullAddress').readOnly=locationConfirmed;
@@ -92,10 +97,8 @@ function openEdit(r,isNew){editing={...r,isNew};$('recordId').value=r.id||'';$('
 
   const locationNote=document.getElementById('recordLocationNote');
   if(locationNote){
-    locationNote.textContent=protectedMember
-      ? (locationConfirmed?'🔒 位置確認済み：住所は閲覧のみです':'⚠️ 位置未確認：住所を修正して位置を再取得できます')
-      : '';
-    locationNote.classList.toggle('hidden',!protectedMember);
+    locationNote.textContent=importedPrivacy?'🔐 名簿由来データは住所を保存せず、地図上の位置情報だけで管理します。':(protectedMember?(locationConfirmed?'🔒 位置確認済み':'⚠️ 位置未確認'):'');
+    locationNote.classList.toggle('hidden',!(importedPrivacy||protectedMember));
   }
 
   const editModal=$('editModal');editModal.style.display='flex';loadVisitHistory(r.id||'',r);requestAnimationFrame(()=>{editModal.scrollTop=0;const detail=editModal.querySelector('.detail-modal');if(detail)detail.scrollTop=0;window.scrollTo({top:0,left:0,behavior:'auto'});});}
@@ -161,7 +164,7 @@ function updateDetailHeader(r){
   const isNew=!!(r?.isNew||editing?.isNew);
   const name=displayName||(isNew?'新しい訪問先':'名前未登録');
   if($('detailHeaderName'))$('detailHeaderName').textContent=name;
-  if($('detailHeaderAddress'))$('detailHeaderAddress').textContent=r.fullAddress||'住所未設定';
+  if($('detailHeaderAddress'))$('detailHeaderAddress').textContent=String(r.source||'')==='import'?`${r.partyId?'党員ID '+r.partyId+' ／ ':''}位置情報で管理`:(r.fullAddress||'住所未設定');
   if($('detailHeaderStatus')){
     const st=STATUS[statusKey(r.status)]||STATUS.unvisited;
     $('detailHeaderStatus').innerHTML=`<span class="status-icon">${st.icon||''}</span>${st.label}`;
@@ -175,7 +178,7 @@ function openRecordInGoogleMaps(){
   window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lat},${lng}`)}`,'_blank','noopener');
 }
 
-function closeEdit(){$('editModal').style.display='none';editing=null}
+function closeEdit(){$('editModal').style.display='none';recordLocationEditing=false;editing=null}
 async function geocodeAddressQuietly(address){
   const q=String(address||'').trim();
   if(!q)return null;
@@ -194,11 +197,12 @@ async function saveRecord(){
   try{
     [btn,mobileBtn].filter(Boolean).forEach(b=>{b.disabled=true;b.textContent='保存中…'});
 
-    const fullAddress=$('fullAddress').value.trim();
+    const importedPrivacy=String($('recordSource').value||'')==='import'&&['party_member','supporter'].includes(String($('recordMemberType').value||''));
+    const fullAddress=importedPrivacy?'':$('fullAddress').value.trim();
     let lat=Number($('lat').value),lng=Number($('lng').value);
     const hasCoords=Number.isFinite(lat)&&Number.isFinite(lng)&&lat&&lng;
     const addressChanged=String(editing?.fullAddress||'').trim()!==fullAddress;
-    const shouldGeocode=fullAddress && (!hasCoords || (addressChanged && String($('recordSource').value||'manual')!=='map'));
+    const shouldGeocode=!importedPrivacy&&fullAddress && (!hasCoords || (addressChanged && String($('recordSource').value||'manual')!=='map'));
 
     if(shouldGeocode){
       [btn,mobileBtn].filter(Boolean).forEach(b=>b.textContent='位置確認中…');
@@ -231,8 +235,8 @@ async function saveRecord(){
       lng:Number.isFinite(lng)?lng:0,
       fullAddress,
       personName:$('personName').value.trim(),
-      phone:$('recordPhone').value.trim(),
-      email:$('recordEmail').value.trim(),
+      phone:importedPrivacy?'':$('recordPhone').value.trim(),
+      email:importedPrivacy?'':$('recordEmail').value.trim(),
       status:editStatus,
       supporter:$('supporter').value,
       revisitPriority:$('priority').value,
@@ -310,3 +314,12 @@ document.addEventListener('DOMContentLoaded',()=>{
   $('personName')?.addEventListener('input',syncDetailHeaderFromForm);
   $('fullAddress')?.addEventListener('input',syncDetailHeaderFromForm);
 });
+
+function initRecordLocationMap(r){
+  const el=$('recordLocationMap');if(!el)return;const lat=Number(r.lat),lng=Number(r.lng);const area=areas.find(a=>String(a.areaId)===String(r.areaId||currentAreaId));const center=(lat&&lng)?[lat,lng]:(area&&Number(area.mapLat)&&Number(area.mapLng)?[Number(area.mapLat),Number(area.mapLng)]:[33.5902,130.4017]);
+  if(!recordLocationMap){recordLocationMap=L.map('recordLocationMap').setView(center,(lat&&lng)?18:13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(recordLocationMap);recordLocationMap.on('click',e=>{if(!recordLocationEditing)return;setRecordLocationMarker(e.latlng.lat,e.latlng.lng,true)});}else recordLocationMap.setView(center,(lat&&lng)?18:13);
+  setTimeout(()=>recordLocationMap.invalidateSize(),30);if(lat&&lng)setRecordLocationMarker(lat,lng,false);else if(recordLocationMarker){recordLocationMarker.remove();recordLocationMarker=null;}
+  recordLocationEditing=false;const btn=$('recordLocationEditBtn');const canEdit=['leader','prefecture_admin','system_admin'].includes(window.appSession?.role);if(btn){btn.classList.toggle('hidden',!canEdit);btn.textContent='位置を修正';}
+}
+function setRecordLocationMarker(lat,lng,fromEdit){if(recordLocationMarker)recordLocationMarker.remove();recordLocationMarker=L.marker([lat,lng],{draggable:!!recordLocationEditing}).addTo(recordLocationMap);if(recordLocationEditing)recordLocationMarker.on('dragend',e=>{const p=e.target.getLatLng();$('lat').value=p.lat;$('lng').value=p.lng;});$('lat').value=lat;$('lng').value=lng;if(fromEdit)recordLocationMap.setView([lat,lng],18);}
+function toggleRecordLocationEdit(){if(!['leader','prefecture_admin','system_admin'].includes(window.appSession?.role))return;recordLocationEditing=!recordLocationEditing;const btn=$('recordLocationEditBtn');if(btn)btn.textContent=recordLocationEditing?'地図をタップ／ピンを移動':'位置を修正';if(recordLocationMarker){const p=recordLocationMarker.getLatLng();setRecordLocationMarker(p.lat,p.lng,false);}}
