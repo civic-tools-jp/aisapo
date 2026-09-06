@@ -2176,14 +2176,14 @@ button.visit-progress-item{cursor:pointer}
 .region-progress-section.is-compact-empty { padding-bottom: 16px; }
 .region-progress-section.is-compact-empty .section-heading { margin-bottom: 0; }
 
-/* v2.8.68: 管理画面の仮パスワード欄を他の入力欄と同じ幅に揃える */
+/* v2.8.69: 管理画面の仮パスワード欄を他の入力欄と同じ幅に揃える */
 @media (min-width:701px){
   #view-admin .admin-user-create-panel > .password-field-character{max-width:980px;}
 }
 .admin-no-actions{color:#aaa;font-weight:700}
 
 
-/* Ver.2.8.68 password visibility UI
+/* Ver.2.8.69 password visibility UI
    Desktop: use browser-native password reveal control only.
    Mobile: keep Aisapo's own reveal button for consistent usability. */
 @media (min-width:701px){
@@ -2195,7 +2195,7 @@ button.visit-progress-item{cursor:pointer}
   .password-field-character input{padding-right:64px!important;}
 }
 
-/* Ver.2.8.68 名簿取り込み操作フィードバック */
+/* Ver.2.8.69 名簿取り込み操作フィードバック */
 #contactImportBtn:disabled{cursor:wait;opacity:.78;transform:none;box-shadow:none}
 #contactImportBtn.importing::before{content:"";display:inline-block;width:15px;height:15px;margin-right:9px;vertical-align:-2px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:aisapoImportSpin .8s linear infinite}
 .import-result{white-space:normal}
@@ -2212,7 +2212,7 @@ button.visit-progress-item{cursor:pointer}
 
 @keyframes aisapoImportSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
-/* Ver.2.8.68 対象外表示：氏名を出さず党員IDで照合 */
+/* Ver.2.8.69 対象外表示：氏名を出さず党員IDで照合 */
 .import-rejected>div{display:grid;grid-template-columns:minmax(130px,220px) 1fr;gap:14px;align-items:start}
 .import-rejected-id{font-weight:800;word-break:break-all}
 .import-rejected-reason{color:#6f6256}
@@ -2220,7 +2220,7 @@ button.visit-progress-item{cursor:pointer}
   .import-rejected>div{grid-template-columns:1fr;gap:1px;margin-bottom:8px}
 }
 
-/* Ver.2.8.68 persistent import issue tracking */
+/* Ver.2.8.69 persistent import issue tracking */
 .import-issues-panel{margin-top:14px;padding:16px;border:1px solid #eadfce;border-radius:14px;background:#fffaf3}
 .import-issues-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px}
 .import-issue-row{display:grid;grid-template-columns:minmax(145px,220px) minmax(220px,1fr) 150px;gap:14px;padding:9px 0;border-top:1px solid #eee5da;align-items:start}
@@ -2232,7 +2232,7 @@ button.visit-progress-item{cursor:pointer}
   .import-issue-date{text-align:left}
 }
 
-/* Ver.2.8.68 import history / collapsible UI */
+/* Ver.2.8.69 import history / collapsible UI */
 .import-issues-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .btn.compact{min-height:34px;padding:6px 12px;font-size:12px;border-radius:999px}
 .import-rejected-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -2243,13 +2243,13 @@ button.visit-progress-item{cursor:pointer}
   .import-issues-actions{gap:6px}
 }
 
-/* Ver.2.8.68 list Party ID search */
+/* Ver.2.8.69 list Party ID search */
 .list-search-row{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(320px,1.2fr);gap:10px}
 .party-id-search{border-color:#ead8bd}
 .list-result-meta{display:flex;justify-content:flex-end;min-height:24px;margin:8px 2px 6px;color:#827568;font-size:12px}
 @media(max-width:760px){.list-search-row{grid-template-columns:1fr}.list-result-meta{justify-content:flex-start}}
 
-/* Ver.2.8.68 import history */
+/* Ver.2.8.69 import history */
 .history-panel{background:#fff}
 .history-row{grid-template-columns:minmax(145px,220px) minmax(220px,1fr) 90px 150px}
 .import-issue-status{font-size:12px;font-weight:800;color:#7a6d60;white-space:nowrap}
@@ -2259,5 +2259,15 @@ button.visit-progress-item{cursor:pointer}
   .history-row .import-issue-date{text-align:left}
 }
 
-/* Ver.2.8.68 一覧検索を1本に統合 */
+/* Ver.2.8.69 一覧検索を1本に統合 */
 .list-search-row.single-search{grid-template-columns:1fr}
+
+/* Ver.2.8.69 一覧カードに党員IDを表示 */
+.card-party-id{
+  margin-top:4px;
+  font-size:12px;
+  font-weight:700;
+  color:#8a7d70;
+  letter-spacing:.01em;
+  word-break:break-all;
+}
