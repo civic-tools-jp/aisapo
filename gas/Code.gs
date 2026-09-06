@@ -434,6 +434,7 @@ function resetPassword_(u,p){
   validateNewPassword_(temp);
   const target=rowsWithRow_(SHEETS.USERS).find(x=>String(x.userId)===targetId);
   if(!target)throw Error('利用者が見つかりません');
+  if(String(target.userId)===String(u.userId))throw Error('自分自身のPWリセットはできません。右上の「PW変更」を利用してください');
   if(u.role==='leader'&&(String(target.branchId)!==String(u.branchId)||target.role!=='member'))throw Error('支部管理者は自支部の一般利用者のみPWリセットできます');
   if(target.role==='system_admin'&&u.role!=='system_admin')throw Error('この利用者は変更できません');
   setUserPassword_(target,temp,true);

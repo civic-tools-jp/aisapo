@@ -1,7 +1,47 @@
 "use strict";
-async function loadAdmin(){try{const d=await api('adminData');branches=d.branches||branches;areas=d.areas||areas;users=d.users||[];window.loginHistory=d.loginHistory||[];$('newBranch').innerHTML=branches.map(b=>`<option value="${esc(b.branchId)}">${esc(b.name)}</option>`).join('');$('areaBranch').innerHTML=$('newBranch').innerHTML;syncNewUserArea();renderUsers();renderAdminAreas();renderLoginHistory();if($('loginHistoryPanel'))$('loginHistoryPanel').classList.toggle('hidden',window.appSession?.role!=='system_admin')}catch(e){msg('appMsg',e.message)}}
+async function loadAdmin(){try{const d=await api('adminData');branches=d.branches||branches;areas=d.areas||areas;users=d.users||[];window.loginHistory=d.loginHistory||[];$('newBranch').innerHTML=branches.map(b=>`<option value="${esc(b.branchId)}">${esc(b.name)}</option>`).join('');$('areaBranch').innerHTML=$('newBranch').innerHTML;
+  if(window.appSession?.role==='leader'){
+    $('newRole').innerHTML='<option value="member">一般利用者</option>';
+    $('newRole').value='member';
+  }else if(!$('newRole').querySelector('option[value="leader"]')){
+    $('newRole').innerHTML='<option value="member">一般利用者</option><option value="leader">支部管理者</option>';
+  }
+  syncNewUserArea();renderUsers();renderAdminAreas();renderLoginHistory();if($('loginHistoryPanel'))$('loginHistoryPanel').classList.toggle('hidden',window.appSession?.role!=='system_admin')}catch(e){msg('appMsg',e.message)}}
 function syncNewUserArea(){const role=$('newRole').value,branchId=$('newBranch').value;$('newAreaWrap').classList.toggle('hidden',role!=='member');$('newArea').innerHTML=areas.filter(a=>String(a.branchId)===String(branchId)).map(a=>`<option value="${esc(a.areaId)}">${esc((a.city?a.city+' ':'')+a.name)}</option>`).join('')}
 function roleLabel(role){return ({system_admin:'システム管理者',leader:'支部管理者',member:'一般利用者'})[role]||role}
+function canEditManagedUser(u){
+  const me=window.appSession||{};
+  if(me.role==='leader')return u.role==='member'&&String(u.branchId)===String(me.branchId);
+  if(['prefecture_admin','system_admin'].includes(me.role))return u.role!=='system_admin';
+  return false;
+}
+function canResetManagedUser(u){
+  const me=window.appSession||{};
+  if(String(u.userId)===String(me.userId))return false;
+  if(me.role==='leader')return u.role==='member'&&String(u.branchId)===String(me.branchId);
+  if(me.role==='prefecture_admin')return u.role!=='system_admin';
+  if(me.role==='system_admin')return true;
+  return false;
+}
+function canToggleManagedUser(u){
+  const me=window.appSession||{};
+  if(String(u.userId)===String(me.userId))return false;
+  if(me.role==='leader')return u.role==='member'&&String(u.branchId)===String(me.branchId);
+  if(['prefecture_admin','system_admin'].includes(me.role))return u.role!=='system_admin';
+  return false;
+}
+function canDeleteManagedUser(u){
+  const me=window.appSession||{};
+  return me.role==='system_admin'&&u.role!=='system_admin'&&String(u.userId)!==String(me.userId);
+}
+function managedUserActionsHtml(u){
+  const actions=[];
+  if(canEditManagedUser(u))actions.push(`<button class="mini-btn" onclick="openUserEdit('${esc(u.userId)}')">編集</button>`);
+  if(canResetManagedUser(u))actions.push(`<button class="mini-btn" onclick="resetUserPassword('${esc(u.userId)}','${esc(u.loginId)}')">PWリセット</button>`);
+  if(canToggleManagedUser(u))actions.push(`<button class="mini-btn" onclick="toggleUserActive('${esc(u.userId)}',${u.active?'false':'true'})">${u.active?'無効化':'有効化'}</button>`);
+  if(canDeleteManagedUser(u))actions.push(`<button class="mini-btn danger" onclick="deleteUser('${esc(u.userId)}','${esc(u.loginId)}')">削除</button>`);
+  return actions.length?actions.join(''):'<span class="admin-no-actions">—</span>';
+}
 function renderUsers(){
   const q=String($('adminUserSearch')?.value||'').trim().toLowerCase(),role=$('adminUserRole')?.value||'',active=$('adminUserActive')?.value||'';
   const rows=users.filter(u=>{
@@ -18,7 +58,7 @@ function renderUsers(){
 <td data-label="権限/エリア"><div class="admin-user-role">${esc(roleLabel(u.role))}</div>${u.role==='member'?`<span class="admin-area-note">${esc((areas.find(a=>String(a.areaId)===String(u.areaId))?.city||'')+' '+(areas.find(a=>String(a.areaId)===String(u.areaId))?.name||''))}</span>`:'<span class="admin-area-note">エリア選択可</span>'}</td>
 <td data-label="状態"><span class="badge">${u.active?'有効':'無効'}</span></td>
 <td data-label="最終ログイン">${u.lastLoginAt?esc(formatLoginDate(u.lastLoginAt)):'—'}</td>
-<td data-label="操作"><div class="admin-user-actions">${u.role!=='system_admin'?`<button class="mini-btn" onclick="openUserEdit('${esc(u.userId)}')">編集</button>`:''}<button class="mini-btn" onclick="resetUserPassword('${esc(u.userId)}','${esc(u.loginId)}')">PWリセット</button>${u.role!=='system_admin'?`<button class="mini-btn" onclick="toggleUserActive('${esc(u.userId)}',${u.active?'false':'true'})">${u.active?'無効化':'有効化'}</button>`:''}${window.appSession?.role==='system_admin'&&u.role!=='system_admin'?`<button class="mini-btn danger" onclick="deleteUser('${esc(u.userId)}','${esc(u.loginId)}')">削除</button>`:''}</div></td>
+<td data-label="操作"><div class="admin-user-actions">${managedUserActionsHtml(u)}</div></td>
 </tr>`).join('')}</tbody></table>`;
 }
 function openUserEdit(userId){
