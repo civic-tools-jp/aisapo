@@ -2176,7 +2176,7 @@ button.visit-progress-item{cursor:pointer}
 .region-progress-section.is-compact-empty { padding-bottom: 16px; }
 .region-progress-section.is-compact-empty .section-heading { margin-bottom: 0; }
 
-/* v2.8.60: 管理画面の仮パスワード欄を他の入力欄と同じ幅に揃える */
+/* v2.8.61: 管理画面の仮パスワード欄を他の入力欄と同じ幅に揃える */
 @media (min-width:701px){
   #view-admin .admin-user-create-panel > .password-field-character{max-width:980px;}
 }
