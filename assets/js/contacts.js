@@ -84,7 +84,7 @@ async function importContactsFile(){
     }
     const rejectedHtml=rejectedImports.length?`<div class="import-rejected"><strong>取込対象外</strong>${rejectedImports.map(x=>`<div><span class="import-rejected-id">${esc(x.partyId||'（党員IDなし）')}</span><span class="import-rejected-reason">${esc(x.reason||'取込不可')}</span></div>`).join('')}</div>`:'';
     $('importResult').innerHTML=`<div class="import-summary"><div class="import-summary-title">✓ 取込完了</div><div class="import-summary-main">${added}件を追加しました</div><div class="import-summary-counts"><span>入力 ${normalized.length}件</span><span>重複 ${duplicateSkipped}件</span><span>位置未確認 ${pendingImportLocations.length}件</span><span>対象外 ${rejectedImports.length}件</span></div>${rejectedHtml}</div>`;
-    renderPendingImports();await loadRecords();
+    renderPendingImports();await loadRecords();await loadImportIssues();
     if(pendingImportLocations.length)alert(`⚠ ${pendingImportLocations.length}件は位置情報へ変換できなかったため登録していません。\n「位置未確認データ」から確認してください。`);
   }catch(e){
     $('importResult').innerHTML=`<div class="import-status error">エラー：${esc(e.message)}</div>`;
@@ -92,6 +92,30 @@ async function importContactsFile(){
     if(btn){btn.disabled=false;btn.classList.remove('importing');btn.textContent='名簿を取り込む';}
   }
 }
+
+async function loadImportIssues(){
+  const panel=$('importIssuesPanel'),list=$('importIssuesList'),count=$('importIssuesCount');
+  if(!panel||!list||!count)return;
+  if(!window.appSession||!['leader','prefecture_admin','system_admin'].includes(window.appSession.role)){panel.classList.add('hidden');return;}
+  try{
+    const d=await api('listImportIssues',{areaId:currentAreaId});
+    const issues=d.issues||[];
+    panel.classList.toggle('hidden',issues.length===0);
+    count.textContent=issues.length?`${issues.length}件`:'';
+    list.innerHTML=issues.map(x=>`<div class="import-issue-row"><span class="import-issue-id">${esc(x.partyId||'')}</span><span class="import-issue-reason">${esc(x.reason||'確認が必要です')}</span><span class="import-issue-date">${esc(formatImportIssueDate(x.importedAt))}</span></div>`).join('');
+  }catch(e){
+    panel.classList.remove('hidden');
+    count.textContent='';
+    list.innerHTML=`<div class="card-sub">取込確認履歴を読み込めませんでした：${esc(e.message)}</div>`;
+  }
+}
+function formatImportIssueDate(v){
+  if(!v)return'';
+  const d=new Date(v);
+  if(isNaN(d))return String(v);
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
 function renderPendingImports(){
   const panel=$('pendingImportPanel'),list=$('pendingImportList'),sum=$('pendingImportSummary');if(!panel||!list||!sum)return;
   const active=pendingImportLocations.map((x,i)=>({...x,_i:i})).filter(x=>!x.resolved);panel.classList.toggle('hidden',active.length===0);sum.textContent=active.length?`${active.length}件はまだ保存されていません。元住所はこの画面内だけで一時利用します。`:'';
@@ -109,5 +133,5 @@ async function openPendingImportLocation(index){
 function setPendingImportMarker(lat,lng){if(importLocationMarker)importLocationMarker.remove();importLocationMarker=L.marker([lat,lng],{draggable:true}).addTo(importLocationMap);importLocationMarker.on('dragend',()=>{});}
 async function savePendingImportLocation(){
   const item=pendingImportLocations[pendingImportIndex];if(!item||!importLocationMarker){alert('地図をタップして位置を指定してください');return}
-  const p=importLocationMarker.getLatLng();try{await api('saveImportedLocation',{areaId:item.areaId,partyId:item.partyId,lastName:item.lastName,memberType:item.memberType,lat:p.lat,lng:p.lng});item.resolved=true;closePendingImportLocation();renderPendingImports();await loadRecords();}catch(e){alert(e.message)}
+  const p=importLocationMarker.getLatLng();try{await api('saveImportedLocation',{areaId:item.areaId,partyId:item.partyId,lastName:item.lastName,memberType:item.memberType,lat:p.lat,lng:p.lng});item.resolved=true;closePendingImportLocation();renderPendingImports();await loadRecords();await loadImportIssues();}catch(e){alert(e.message)}
 }

@@ -297,6 +297,7 @@ function showView(v,opts={}){
   const fromAnalysis=v==='list'&&!!opts.fromAnalysis;
   backButtons.forEach(back=>back.classList.toggle('hidden',!fromAnalysis));
   if(v==='analysis')renderAnalysis();
+  if(v==='contacts'&&typeof loadImportIssues==='function')loadImportIssues();
   if(v==='list')setTimeout(()=>toggleListFilters(false),0);
   if(v==='map')setTimeout(()=>{if(map&&typeof map.invalidateSize==='function')map.invalidateSize();},100);
   setTimeout(updateScrollTopFloating,0);
