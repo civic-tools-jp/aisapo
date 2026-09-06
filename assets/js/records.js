@@ -4,15 +4,34 @@ async function loadRecords(){try{setBusy(true);const d=await api('listRecords',{
 function setBusy(v){$('app').classList.toggle('spinner',v)}
 async function loadActivitySummary(){try{const d=await api('activitySummary',{areaId:currentAreaId});activitySummary=d||null;}catch(e){console.warn('activity summary',e);activitySummary=null;}}
 function isRevisit(r){return statusKey(r.status)==='revisit'}
+function visitStateForRecord(r){
+  const count=Number(r?.visitCount||r?.roundNo||0)||0;
+  const visited=!!(count||r?.date||String(r?.lastVisitResult||'').trim()||statusKey(r?.status)!=='unvisited');
+  return visited?{key:'visited',label:'訪問済',icon:'✓'}:{key:'unvisited',label:'未訪問',icon:'⌂'};
+}
+function lastVisitResultLabel(r){
+  const raw=String(r?.lastVisitResult||'').trim();
+  if(raw)return VISIT_RESULT_LABELS[raw]||raw;
+  const legacy=statusKey(r?.status);
+  return ({absent:'不在',refused:'断られた',revisit:'インターフォンのみ'})[legacy]||(legacy==='visited'&&r?.date?'訪問済':'');
+}
 function renderDetailQuickSummary(r){
   const box=$('detailQuickSummary');if(!box)return;
-  const st=STATUS[statusKey(r?.status)]||STATUS.unvisited;
+  const state=visitStateForRecord(r),result=lastVisitResultLabel(r)||'—';
   const next=r?.nextVisitDate?formatVisitDate(r.nextVisitDate):'未設定';
   const rank=typeof supportRankLabel==='function'?supportRankLabel(r?.supporter):'';
-  const last=r?.date?formatVisitDate(r.date):'未訪問';
-  box.innerHTML=`<div><span>現在</span><b>${esc(st.label)}</b></div><div><span>最終訪問</span><b>${esc(last)}</b></div><div><span>次回予定</span><b>${esc(next)}</b></div><div><span>支持</span><b>${esc(rank||'未判定')}</b></div>${boolValue(r?.urgent)?'<div class="quick-alert"><span>対応</span><b>⚡ 急ぎ</b></div>':''}${boolValue(r?.warning)?'<div class="quick-alert"><span>注意</span><b>⚠ あり</b></div>':''}`;
+  const last=r?.date?formatVisitDate(r.date):'—';
+  const count=Number(r?.visitCount||r?.roundNo||0)||0;
+  box.innerHTML=`<div><span>訪問状況</span><b>${esc(state.label)}</b></div><div><span>最終結果</span><b>${esc(result)}</b></div><div><span>最終訪問</span><b>${esc(last)}</b></div><div><span>訪問回数</span><b>${count}回</b></div><div><span>次回予定</span><b>${esc(next)}</b></div><div><span>支持</span><b>${esc(rank||'未判定')}</b></div>${boolValue(r?.urgent)?'<div class="quick-alert"><span>対応</span><b>⚡ 急ぎ</b></div>':''}${boolValue(r?.warning)?'<div class="quick-alert"><span>注意</span><b>⚠ あり</b></div>':''}`;
 }
-function renderStatus(){const grid=$('statusGrid');if(grid)grid.innerHTML='';const st=STATUS[editStatus]||STATUS.unvisited;if($('detailHeaderStatus'))$('detailHeaderStatus').innerHTML=`<span class="status-icon">${st.icon||''}</span>${st.label}`;const summary=$('visitSummary');if(summary){const count=Number(editing?.visitCount||editing?.roundNo||0)||0;const next=editing?.nextVisitDate?formatVisitDate(editing.nextVisitDate):'';summary.innerHTML=`<div class="visit-summary-main"><strong>${st.icon||''} ${esc(st.label)}</strong>${count?`<span>${count}回訪問</span>`:'<span>訪問履歴なし</span>'}</div>${next?`<div class="visit-summary-next">次回予定：${esc(next)}</div>`:''}`;}renderDetailQuickSummary(editing||{});}
+function renderStatus(){
+  const grid=$('statusGrid');if(grid)grid.innerHTML='';
+  const state=visitStateForRecord(editing||{}),result=lastVisitResultLabel(editing||{}),count=Number(editing?.visitCount||editing?.roundNo||0)||0;
+  const next=editing?.nextVisitDate?formatVisitDate(editing.nextVisitDate):'未設定',last=editing?.date?formatVisitDate(editing.date):'—';
+  if($('detailHeaderStatus'))$('detailHeaderStatus').innerHTML=`<span class="status-icon">${state.icon}</span>${state.label}`;
+  const summary=$('visitSummary');if(summary)summary.innerHTML=`<div class="visit-summary-grid"><div><span>訪問状況</span><strong>${state.icon} ${esc(state.label)}</strong></div><div><span>最終訪問結果</span><strong>${esc(result||'—')}</strong></div><div><span>最終訪問日</span><strong>${esc(last)}</strong></div><div><span>訪問回数</span><strong>${count}回</strong></div><div><span>次回訪問日</span><strong>${esc(next)}</strong></div></div>`;
+  renderDetailQuickSummary(editing||{});
+}
 function inputDateValue(v){
   if(!v)return today();
   if(v instanceof Date&&!isNaN(v))return v.toISOString().slice(0,10);
@@ -251,8 +270,7 @@ async function saveRecord(){
       updatedAt:editing?.updatedAt||''
     };
     if(visitResult){
-      const mappedStatus={talked:'visited',family:'visited',absent:'absent',intercom:'revisit',refused:'refused',other:editStatus};
-      rec.status=mappedStatus[visitResult]||editStatus;
+      rec.status='visited';
     }
     const visitEntry=visitResult?{
       roundNo:Number($('visitRound')?.value||nextRoundForRecord(editing)),
