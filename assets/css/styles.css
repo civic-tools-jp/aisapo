@@ -2169,7 +2169,7 @@ button.visit-progress-item{cursor:pointer}
 .region-progress-section.is-compact-empty { padding-bottom: 16px; }
 .region-progress-section.is-compact-empty .section-heading { margin-bottom: 0; }
 
-/* v2.8.73: 管理画面の仮パスワード欄を他の入力欄と同じ幅に揃える */
+/* v2.8.74: 管理画面の仮パスワード欄を他の入力欄と同じ幅に揃える */
 @media (min-width:701px){
   #view-admin .admin-user-create-panel > .password-field-character{max-width:980px;}
 }
@@ -2177,7 +2177,7 @@ button.visit-progress-item{cursor:pointer}
 
 
 
-/* Ver.2.8.73 名簿取り込み操作フィードバック */
+/* Ver.2.8.74 名簿取り込み操作フィードバック */
 #contactImportBtn:disabled{cursor:wait;opacity:.78;transform:none;box-shadow:none}
 #contactImportBtn.importing::before{content:"";display:inline-block;width:15px;height:15px;margin-right:9px;vertical-align:-2px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:aisapoImportSpin .8s linear infinite}
 .import-result{white-space:normal}
@@ -2194,7 +2194,7 @@ button.visit-progress-item{cursor:pointer}
 
 @keyframes aisapoImportSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
-/* Ver.2.8.73 対象外表示：氏名を出さず党員IDで照合 */
+/* Ver.2.8.74 対象外表示：氏名を出さず党員IDで照合 */
 .import-rejected>div{display:grid;grid-template-columns:minmax(130px,220px) 1fr;gap:14px;align-items:start}
 .import-rejected-id{font-weight:800;word-break:break-all}
 .import-rejected-reason{color:#6f6256}
@@ -2202,7 +2202,7 @@ button.visit-progress-item{cursor:pointer}
   .import-rejected>div{grid-template-columns:1fr;gap:1px;margin-bottom:8px}
 }
 
-/* Ver.2.8.73 persistent import issue tracking */
+/* Ver.2.8.74 persistent import issue tracking */
 .import-issues-panel{margin-top:14px;padding:16px;border:1px solid #eadfce;border-radius:14px;background:#fffaf3}
 .import-issues-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px}
 .import-issue-row{display:grid;grid-template-columns:minmax(145px,220px) minmax(220px,1fr) 150px;gap:14px;padding:9px 0;border-top:1px solid #eee5da;align-items:start}
@@ -2214,7 +2214,7 @@ button.visit-progress-item{cursor:pointer}
   .import-issue-date{text-align:left}
 }
 
-/* Ver.2.8.73 import history / collapsible UI */
+/* Ver.2.8.74 import history / collapsible UI */
 .import-issues-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .btn.compact{min-height:34px;padding:6px 12px;font-size:12px;border-radius:999px}
 .import-rejected-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -2225,13 +2225,13 @@ button.visit-progress-item{cursor:pointer}
   .import-issues-actions{gap:6px}
 }
 
-/* Ver.2.8.73 list Party ID search */
+/* Ver.2.8.74 list Party ID search */
 .list-search-row{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(320px,1.2fr);gap:10px}
 .party-id-search{border-color:#ead8bd}
 .list-result-meta{display:flex;justify-content:flex-end;min-height:24px;margin:8px 2px 6px;color:#827568;font-size:12px}
 @media(max-width:760px){.list-search-row{grid-template-columns:1fr}.list-result-meta{justify-content:flex-start}}
 
-/* Ver.2.8.73 import history */
+/* Ver.2.8.74 import history */
 .history-panel{background:#fff}
 .history-row{grid-template-columns:minmax(145px,220px) minmax(220px,1fr) 90px 150px}
 .import-issue-status{font-size:12px;font-weight:800;color:#7a6d60;white-space:nowrap}
@@ -2241,10 +2241,10 @@ button.visit-progress-item{cursor:pointer}
   .history-row .import-issue-date{text-align:left}
 }
 
-/* Ver.2.8.73 一覧検索を1本に統合 */
+/* Ver.2.8.74 一覧検索を1本に統合 */
 .list-search-row.single-search{grid-template-columns:1fr}
 
-/* Ver.2.8.73 一覧カードに党員IDを表示 */
+/* Ver.2.8.74 一覧カードに党員IDを表示 */
 .card-party-id{
   margin-top:4px;
   font-size:12px;
@@ -2254,7 +2254,7 @@ button.visit-progress-item{cursor:pointer}
   word-break:break-all;
 }
 
-/* Ver.2.8.73 詳細画面: 状態・結果・次回対応を分離 */
+/* Ver.2.8.74 詳細画面: 状態・結果・次回対応を分離 */
 .visit-summary-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:10px}
 .visit-summary-grid>div{background:#faf9f6;border:1px solid #eee7dd;border-radius:14px;padding:12px 14px;min-width:0}
 .visit-summary-grid span{display:block;font-size:12px;color:#8b8177;margin-bottom:5px}
@@ -2262,7 +2262,7 @@ button.visit-progress-item{cursor:pointer}
 @media(max-width:760px){.visit-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.visit-summary-grid>div:last-child{grid-column:1/-1}}
 
 
-/* Ver.2.8.73 password visibility
+/* Ver.2.8.74 password visibility
    PC/スマホとも「あいサポ」の状態表示に統一:
    非表示 = 斜線入り目 / 表示中 = 開いた目 */
 .password-toggle.simple-eye-toggle,
@@ -2294,7 +2294,7 @@ input[type="password"]::-ms-clear{
 .mobile-user-avatar .role-avatar-fallback{font-size:15px}
 
 
-/* Ver.2.8.73 hotfix: ログイン画面の独自目アイコンをPC/スマホとも常時表示 */
+/* Ver.2.8.74 hotfix: ログイン画面の独自目アイコンをPC/スマホとも常時表示 */
 #loginPasswordToggle{
   display:grid!important;
   place-items:center!important;
@@ -2304,7 +2304,7 @@ input[type="password"]::-ms-clear{
 }
 
 
-/* Ver.2.8.73 password-eye final unification.
+/* Ver.2.8.74 password-eye final unification.
    This block is intentionally last so old responsive rules cannot hide a toggle. */
 .password-field,
 .password-field-character{
