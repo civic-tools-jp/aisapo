@@ -68,8 +68,16 @@ function syncPasswordCharacterButton(btn,forceHidden=false){
   btn.setAttribute('aria-pressed',hidden?'false':'true');
 }
 function syncAllPasswordVisibility(forceHidden=false){
-  syncLoginPasswordState(forceHidden);
-  document.querySelectorAll('.password-character-toggle[data-password-toggle]').forEach(btn=>syncPasswordCharacterButton(btn,forceHidden));
+  document.querySelectorAll('[data-password-toggle]').forEach(btn=>{
+    const input=document.getElementById(btn.getAttribute('data-password-toggle'));
+    if(!input)return;
+    if(forceHidden)input.type='password';
+    const hidden=input.type!=='text';
+    btn.innerHTML=eyeSvg(hidden);
+    btn.setAttribute('aria-label',hidden?'パスワードを表示':'パスワードを隠す');
+    btn.setAttribute('title',hidden?'パスワードを表示':'パスワードを隠す');
+    btn.setAttribute('aria-pressed',hidden?'false':'true');
+  });
 }
 
 async function startApp(){
@@ -99,7 +107,7 @@ async function startApp(){
 async function loadBootstrap(){const d=await api('bootstrap');branches=d.branches||[];areas=d.areas||[];const sel=$('areaSelect');sel.innerHTML=areas.map(a=>`<option value="${esc(a.areaId)}">${esc((a.city?a.city+' ':'')+a.name)}</option>`).join('');if(d.areaLocked){currentAreaId=d.defaultAreaId||window.appSession.areaId||areas[0]?.areaId||'';window.appSession.areaId=currentAreaId;localStorage.setItem('aisapo_session',JSON.stringify(window.appSession));$('areaControl').classList.add('locked');sel.disabled=true;}else{sel.disabled=false;$('areaControl').classList.remove('locked');const saved=localStorage.getItem('aisapo_area')||'';currentAreaId=areas.some(a=>String(a.areaId)===String(saved))?saved:(areas[0]?.areaId||'');}sel.value=currentAreaId;if(!currentAreaId)msg('appMsg','活動エリアが設定されていません。管理者に確認してください。');}
 async function changeArea(save=true){const sel=$('areaSelect');if(window.appSession?.role==='member')currentAreaId=window.appSession.areaId||currentAreaId;else currentAreaId=sel?.value||currentAreaId;if(save&&window.appSession?.role!=='member')localStorage.setItem('aisapo_area',currentAreaId||'');if(sel)sel.value=currentAreaId;const a=areas.find(x=>String(x.areaId)===String(currentAreaId));$('areaLabel').textContent=a?((a.city?a.city+' ':'')+a.name):'未設定';if(map&&a&&Number(a.mapLat)&&Number(a.mapLng))map.setView([Number(a.mapLat),Number(a.mapLng)],13);await Promise.all([loadRecords(),loadContacts()]);}
 let passwordChangeForced=false;
-function openPasswordModal(forced=false){passwordChangeForced=!!forced;$('passwordModal').style.display='flex';$('passwordModalTitle').textContent=forced?'初回パスワード変更':'パスワード変更';$('passwordModalNote').textContent=forced?'仮パスワードのままでは利用できません。新しいパスワードへ変更してください。':'現在のパスワードを確認して変更します。';$('passwordClose').classList.toggle('hidden',forced);$('currentPassword').value=$('newPassword1').value=$('newPassword2').value='';syncAllPasswordVisibility(true);msg('passwordMsg','');}
+function openPasswordModal(forced=false){passwordChangeForced=!!forced;$('passwordModal').style.display='flex';$('passwordModalTitle').textContent=forced?'初回パスワード変更':'パスワード変更';$('passwordModalNote').textContent=forced?'仮パスワードのままでは利用できません。新しいパスワードへ変更してください。':'現在のパスワードを確認して変更します。';$('passwordClose').classList.toggle('hidden',forced);$('currentPassword').value=$('newPassword1').value=$('newPassword2').value='';requestAnimationFrame(()=>syncAllPasswordVisibility(true));msg('passwordMsg','');}
 function closePasswordModal(){if(passwordChangeForced)return;$('passwordModal').style.display='none';}
 async function changeOwnPassword(){try{const current=$('currentPassword').value,next=$('newPassword1').value,confirm=$('newPassword2').value;if(next!==confirm)throw Error('新しいパスワードが一致しません');await api('changePassword',{currentPassword:current,newPassword:next});window.appSession.mustChangePassword=false;localStorage.setItem('aisapo_session',JSON.stringify(window.appSession));passwordChangeForced=false;$('passwordModal').style.display='none';alert('パスワードを変更しました');}catch(e){msg('passwordMsg',e.message)}}
 
@@ -112,7 +120,11 @@ window.togglePasswordCharacter=function(ev,btn){
   const input=document.getElementById(btn.getAttribute('data-password-toggle'));
   if(!input)return false;
   input.type=input.type==='text'?'password':'text';
-  syncPasswordCharacterButton(btn,false);
+  const hidden=input.type!=='text';
+  btn.innerHTML=eyeSvg(hidden);
+  btn.setAttribute('aria-label',hidden?'パスワードを表示':'パスワードを隠す');
+  btn.setAttribute('title',hidden?'パスワードを表示':'パスワードを隠す');
+  btn.setAttribute('aria-pressed',hidden?'false':'true');
   return false;
 };
 
