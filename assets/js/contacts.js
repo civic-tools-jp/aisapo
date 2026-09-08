@@ -3,6 +3,14 @@ const MEMBER_LABELS={party_member:'⭐ 党員',supporter:'♥ サポーター',g
 const MEMBER_RANK={party_member:0,supporter:1,general:2,unknown:3,'':3};
 let contactListExpanded=false;
 async function loadContacts(){try{const d=await api('listContacts',{areaId:currentAreaId});contacts=d.contacts||[];renderContacts();renderContactSelect();if(map)renderMarkers();}catch(e){msg('appMsg',e.message)}}
+function memberClassLabel(v){
+  return ({general_member:'一般党員',operator_member:'運営党員',supporter:'サポーター'}[String(v||'')]||'');
+}
+function recordMemberLabel(r){
+  const cls=memberClassLabel(r?.memberClass);
+  return cls||memberTypeLabel(r?.memberType);
+}
+
 function memberTypeLabel(v){return MEMBER_LABELS[v]||MEMBER_LABELS.unknown}
 function renderContacts(){
   const q=($('contactSearch')?.value||'').toLowerCase();
@@ -45,15 +53,40 @@ async function saveContact(){try{
 }catch(e){alert(e.message)}}
 async function deleteContact(){if(!editingContact?.contactId){closeContact();return}if(!confirm('この名簿を削除しますか？'))return;try{await api('deleteContact',{contactId:editingContact.contactId,updatedAt:editingContact.updatedAt||''});closeContact();await loadContacts()}catch(e){alert(e.message)}}
 function headerValue(row,names){for(const n of names){if(Object.prototype.hasOwnProperty.call(row,n)&&row[n]!==''&&row[n]!=null)return row[n]}return''}
+function normalizeRosterMemberClassValue(value){
+  const raw=String(value||'').trim();
+  if(!raw)return '';
+  const compact=raw.replace(/[ 　\t\r\n]/g,'').replace(/（/g,'(').replace(/）/g,')').toLowerCase();
+  if(/^一般(?:\((?:年|月)\))?$/.test(compact)||compact==='一般党員')return'general_member';
+  if(/^運営(?:\((?:年|月)\))?$/.test(compact)||compact==='運営党員')return'operator_member';
+  if(/^サポーター(?:\((?:年|月)\))?$/.test(compact)||compact==='サポーター会員')return'supporter';
+  if(compact.startsWith('一般('))return'general_member';
+  if(compact.startsWith('運営('))return'operator_member';
+  if(compact.startsWith('サポーター('))return'supporter';
+  return'';
+}
+function inferMemberClass(row){
+  const raw=headerValue(row,[
+    '党員種別','党員(会員)種別','党員（会員）種別','党員・サポーター区分','党員/サポーター区分',
+    '会員種別','党員区分','会員区分','区分','種別','属性'
+  ]);
+  return normalizeRosterMemberClassValue(raw);
+}
 function inferMemberType(row,forced){
   if(forced&&forced!=='auto')return forced;
+  const memberClass=inferMemberClass(row);
+  if(memberClass==='supporter')return'supporter';
+  if(memberClass==='general_member'||memberClass==='operator_member')return'party_member';
   const raw=String(headerValue(row,[
     '党員種別','党員(会員)種別','党員（会員）種別','党員・サポーター区分','党員/サポーター区分',
     '会員種別','党員区分','会員区分','区分','種別','属性'
   ])||'');
-  if(/サポ|support/i.test(raw))return'supporter';if(/党員|会員|member/i.test(raw))return'party_member';
+  if(/サポ|support/i.test(raw))return'supporter';
+  if(/党員|会員|member/i.test(raw))return'party_member';
   const pm=String(headerValue(row,['党員'])||'').trim(),sp=String(headerValue(row,['サポーター','サポータ'])||'').trim();
-  if(pm&&!/^(0|false|いいえ|無)$/i.test(pm))return'party_member';if(sp&&!/^(0|false|いいえ|無)$/i.test(sp))return'supporter';return'unknown';
+  if(pm&&!/^(0|false|いいえ|無)$/i.test(pm))return'party_member';
+  if(sp&&!/^(0|false|いいえ|無)$/i.test(sp))return'supporter';
+  return'unknown';
 }
 function normalizeImportRow(row,forced){
   const last=String(headerValue(row,['氏名（姓）','氏名(姓)','姓'])||'').trim();
@@ -64,6 +97,7 @@ function normalizeImportRow(row,forced){
     lastName:inferredLast,
     fullAddress:String(headerValue(row,['住所(建物名なども含む)','住所（建物名なども含む）','住所','現住所','住所1','住所（自宅）'])||'').trim(),
     memberType:inferMemberType(row,forced),
+    memberClass:inferMemberClass(row),
     sourceBranch:String(headerValue(row,['支部'])||'').trim()
   };
 }
@@ -183,5 +217,5 @@ async function openPendingImportLocation(index){
 function setPendingImportMarker(lat,lng){if(importLocationMarker)importLocationMarker.remove();importLocationMarker=L.marker([lat,lng],{draggable:true}).addTo(importLocationMap);importLocationMarker.on('dragend',()=>{});}
 async function savePendingImportLocation(){
   const item=pendingImportLocations[pendingImportIndex];if(!item||!importLocationMarker){alert('地図をタップして位置を指定してください');return}
-  const p=importLocationMarker.getLatLng();try{await api('saveImportedLocation',{areaId:item.areaId,partyId:item.partyId,lastName:item.lastName,memberType:item.memberType,lat:p.lat,lng:p.lng});item.resolved=true;closePendingImportLocation();renderPendingImports();await loadRecords();await loadImportIssues();}catch(e){alert(e.message)}
+  const p=importLocationMarker.getLatLng();try{await api('saveImportedLocation',{areaId:item.areaId,partyId:item.partyId,lastName:item.lastName,memberType:item.memberType,memberClass:item.memberClass||'',lat:p.lat,lng:p.lng});item.resolved=true;closePendingImportLocation();renderPendingImports();await loadRecords();await loadImportIssues();}catch(e){alert(e.message)}
 }

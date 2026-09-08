@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>あいサポ Ver.2.8.72</title>
+<title>あいサポ Ver.2.8.73</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="assets/css/styles.css?v=2.8.72">
+<link rel="stylesheet" href="assets/css/styles.css?v=2.8.73">
 </head>
 <body>
 <div id="loginView" class="login-shell">
   <div class="login-card">
     <div class="brand-lockup login-brand brand-image-lockup">
-      <img src="assets/img/aisapo-logo.png?v=2.8.72" alt="あいサポ 会いに行く。つながる。地域をサポート。" class="aisapo-logo-image">
+      <img src="assets/img/aisapo-logo.png?v=2.8.73" alt="あいサポ 会いに行く。つながる。地域をサポート。" class="aisapo-logo-image">
     </div>
     <div class="login-title">ログイン</div>
     <div id="loginMsg"></div>
@@ -19,14 +19,14 @@
     <label class="label">パスワード</label><div class="password-field"><input id="loginPassword" type="password" autocomplete="current-password"><button type="button" class="password-character-toggle aisapo-eye-toggle" data-password-toggle="loginPassword" aria-label="パスワードを表示" aria-pressed="false" onclick="return togglePasswordCharacter(event,this)"></button><button type="button" id="loginPasswordToggle" class="password-toggle simple-eye-toggle" onclick="toggleLoginPassword()" aria-label="パスワードを表示" title="パスワードを表示"><svg class="password-eye-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3 3.7M6.2 6.2C3.5 8 2 12 2 12s3.5 6 10 6c1.8 0 3.3-.5 4.6-1.2"/><path d="M9.9 9.9A3 3 0 0 0 14.1 14.1"/></svg></button></div>
     <button class="btn primary full" onclick="login()">ログイン</button>
     
-    <div class="version-note">Ver.2.8.72</div>
+    <div class="version-note">Ver.2.8.73</div>
   </div>
 </div>
 
 <div id="app" class="hidden app-shell">
   <header class="app-header">
     <div class="brand-lockup brand-image-lockup">
-      <img src="assets/img/aisapo-logo.png?v=2.8.72" alt="あいサポ" class="aisapo-logo-image">
+      <img src="assets/img/aisapo-logo.png?v=2.8.73" alt="あいサポ" class="aisapo-logo-image">
     </div>
     <div class="mobile-user-actions">
       <div class="mobile-user-identity">
@@ -128,7 +128,7 @@
           <div class="filter-panel-actions"><button type="button" class="btn filter-clear-btn" onclick="clearListFilters()">条件をクリア</button></div>
           <div class="row list-select-filters">
             <div><label class="label">登録方法</label><select id="listSource" onchange="renderLists()"><option value="">すべて</option><option value="import">名簿取込</option><option value="manual">手入力</option><option value="map">地図登録</option></select></div>
-            <div><label class="label">区分</label><select id="listMemberType" onchange="renderLists()"><option value="">すべて</option><option value="party_member">党員</option><option value="supporter">サポーター</option><option value="general">一般</option><option value="unknown">未設定</option></select></div>
+            <div><label class="label">区分</label><select id="listMemberType" onchange="renderLists()"><option value="">すべて</option><option value="party_general">一般党員</option><option value="party_operator">運営党員</option><option value="party_member">党員（区分未登録）</option><option value="supporter">サポーター</option><option value="general">一般対象</option><option value="unknown">未設定</option></select></div>
             <div><label class="label">支持ランク</label><select id="listSupportRank" onchange="renderLists()"><option value="">すべて</option><option value="A">A（強い支持）</option><option value="B">B（支持・好感）</option><option value="C">C（接触済・未確定）</option><option value="unranked">未判定</option></select></div><div><label class="label">位置</label><select id="listLocation" onchange="renderLists()"><option value="">すべて</option><option value="located">取得済</option><option value="unlocated">未取得</option></select></div>
             <div><label class="label">並び順</label><select id="listSort" onchange="renderLists()"><option value="default">通常</option><option value="next_visit">次回訪問日の近い順</option><option value="date_desc">訪問日の新しい順</option><option value="date_asc">訪問日の古い順</option></select></div>
             <div><label class="label">訪問日（開始）</label><input id="listDateFrom" type="date" onchange="renderLists()"></div><div><label class="label">訪問日（終了）</label><input id="listDateTo" type="date" onchange="renderLists()"></div>
@@ -360,15 +360,15 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <div id="importLocationModal" class="modal-bg" onclick="closePendingImportLocation()" style="display:none"><div class="modal" onclick="event.stopPropagation()"><div class="modal-head"><h2>位置未確認データ</h2><button class="close" onclick="closePendingImportLocation()">×</button></div><div id="pendingImportPerson" class="notice"></div><div class="notice">下の住所は位置確認のため一時表示しています。あいサポには保存されません。</div><div id="pendingImportAddress" class="pending-address"></div><div id="importLocationMap" class="record-location-map"></div><div class="actions"><button class="btn" onclick="closePendingImportLocation()">後で確認</button><button id="savePendingImportBtn" class="btn primary" onclick="savePendingImportLocation()">この位置で登録</button></div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="assets/js/config.js?v=2.8.72"></script>
-<script src="assets/js/state.js?v=2.8.72"></script>
-<script src="assets/js/utils.js?v=2.8.72"></script>
-<script src="assets/js/api.js?v=2.8.72"></script>
-<script src="assets/js/auth.js?v=2.8.72"></script>
-<script src="assets/js/map.js?v=2.8.72"></script>
-<script src="assets/js/records.js?v=2.8.72"></script>
-<script src="assets/js/contacts.js?v=2.8.72"></script>
-<script src="assets/js/views.js?v=2.8.72"></script>
-<script src="assets/js/admin.js?v=2.8.72"></script>
-<script src="assets/js/main.js?v=2.8.72"></script>
+<script src="assets/js/config.js?v=2.8.73"></script>
+<script src="assets/js/state.js?v=2.8.73"></script>
+<script src="assets/js/utils.js?v=2.8.73"></script>
+<script src="assets/js/api.js?v=2.8.73"></script>
+<script src="assets/js/auth.js?v=2.8.73"></script>
+<script src="assets/js/map.js?v=2.8.73"></script>
+<script src="assets/js/records.js?v=2.8.73"></script>
+<script src="assets/js/contacts.js?v=2.8.73"></script>
+<script src="assets/js/views.js?v=2.8.73"></script>
+<script src="assets/js/admin.js?v=2.8.73"></script>
+<script src="assets/js/main.js?v=2.8.73"></script>
 </body></html>

@@ -69,7 +69,7 @@ function recordCard(r){
     <div class="card-title-row"><div><div class="card-title">${esc(recordDisplayName(r)||'名前未登録')} <span class="badge status-badge"><span class="status-icon">${esc(st.icon||'')}</span>${esc(st.label)}</span></div>${r.partyId?`<div class="card-party-id">党員ID：${esc(r.partyId)}</div>`:''}</div>${located?`<button type="button" class="list-map-btn has-tip" data-tip="地図で見る" onclick="event.stopPropagation();showRecordOnMap('${esc(r.id)}')">📍 <span>地図で見る</span></button>`:''}</div>
     <div class="muted">${esc(listPrivacyAddress(r.fullAddress))}${r.date?' ｜ '+esc(formatShortDate(r.date)):''}</div>
     <div class="badges">
-      <span class="badge member-badge ${mt==='party_member'?'member-party':mt==='supporter'?'member-supporter':''}">${esc(memberTypeLabel(mt))}</span>
+      <span class="badge member-badge ${mt==='party_member'?'member-party':mt==='supporter'?'member-supporter':''}">${esc(typeof recordMemberLabel==='function'?recordMemberLabel(r):memberTypeLabel(mt))}</span>
       <span class="badge">${esc(sourceLabel[r.source]||'手入力')}</span>
       <span class="badge">${(window.appSession?.role==='member'&&['party_member','supporter'].includes(mt))?(r.locationConfirmed?'🔒 位置確認済':'⚠ 位置未確認'):(located?'📍 位置取得済':'⚠ 位置未取得')}</span>
       ${supportRankLabel(r.supporter)?`<span class="badge support-rank-badge rank-${supportRankValue(r.supporter).toLowerCase()}">${esc(supportRankLabel(r.supporter))}</span>`:''}
@@ -109,7 +109,14 @@ function renderLists(){
     if(currentAreaId&&String(r.areaId||'')!==String(currentAreaId))return false;
     if(q&&![r.partyId,r.personName,r.fullAddress,r.phone,r.email,r.sourceBranch,r.referrer,r.memo,r.followMemo,r.posterRequestMemo].some(v=>String(v||'').toLowerCase().includes(q)))return false;
     if(source&&String(r.source||'manual')!==source)return false;
-    if(memberType&&String(r.memberType||'general')!==memberType)return false;
+    if(memberType){
+      if(memberType==='party_general'&&String(r.memberClass||'')!=='general_member')return false;
+      else if(memberType==='party_operator'&&String(r.memberClass||'')!=='operator_member')return false;
+      else if(memberType==='supporter'&&String(r.memberType||'')!=='supporter')return false;
+      else if(memberType==='general'&&String(r.memberType||'general')!=='general')return false;
+      else if(memberType==='unknown'&&String(r.memberType||'unknown')!=='unknown')return false;
+      else if(memberType==='party_member'&&String(r.memberType||'')!=='party_member')return false;
+    }
     const rank=supportRankValue(r.supporter);
     if(supportRank==='unranked'&&rank)return false;
     if(supportRank&&supportRank!=='unranked'&&rank!==supportRank)return false;
